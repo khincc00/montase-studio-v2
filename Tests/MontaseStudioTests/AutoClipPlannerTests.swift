@@ -189,8 +189,10 @@ final class AutoClipAudioExtractionTests: XCTestCase {
         process.waitUntilExit()
         XCTAssertEqual(process.terminationStatus, 0)
 
-        let audio = try await AutoClipTranscriber.extractAudio(from: video)
+        let extracted = try await AutoClipTranscriber.extractAudio(from: video)
+        let audio = extracted.url
         defer { try? FileManager.default.removeItem(at: audio) }
+        XCTAssertTrue(extracted.damaged.isEmpty)
         let asset = AVURLAsset(url: audio)
         let audioTracks = try await asset.loadTracks(withMediaType: .audio)
         XCTAssertFalse(audioTracks.isEmpty)

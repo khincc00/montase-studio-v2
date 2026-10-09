@@ -9,14 +9,20 @@ struct MontaseStudioApp: App {
         let arguments = CommandLine.arguments
         if let index = arguments.firstIndex(of: "--autoclip-check"), arguments.indices.contains(index + 1),
            let outIndex = arguments.firstIndex(of: "--autoclip-out"), arguments.indices.contains(outIndex + 1) {
-            AutoClipSelfCheck.run(path: arguments[index + 1], outputPath: arguments[outIndex + 1])
+            AutoClipSelfCheck.run(path: arguments[index + 1], outputPath: arguments[outIndex + 1], localeIdentifier: Self.value(after: "--autoclip-locale", in: arguments) ?? "id-ID")
         }
         if let index = arguments.firstIndex(of: "--autoclip-run"), arguments.indices.contains(index + 1),
            let outIndex = arguments.firstIndex(of: "--autoclip-out"), arguments.indices.contains(outIndex + 1) {
             let countIndex = arguments.firstIndex(of: "--autoclip-count")
             let count = countIndex.flatMap { arguments.indices.contains($0 + 1) ? Int(arguments[$0 + 1]) : nil } ?? 3
-            AutoClipSelfCheck.runFull(path: arguments[index + 1], outputPath: arguments[outIndex + 1], count: count)
+            AutoClipSelfCheck.runFull(path: arguments[index + 1], outputPath: arguments[outIndex + 1], count: count, localeIdentifier: Self.value(after: "--autoclip-locale", in: arguments) ?? "id-ID")
         }
+    }
+
+    /// Nilai argumen setelah `flag`, misalnya `--autoclip-locale en-US`.
+    static func value(after flag: String, in arguments: [String]) -> String? {
+        guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else { return nil }
+        return arguments[index + 1]
     }
 
     var body: some Scene {

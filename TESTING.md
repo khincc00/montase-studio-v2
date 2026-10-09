@@ -107,6 +107,8 @@ Pemeriksaan seluruh proses termasuk ekspor (tanpa UI):
 
 Jika gagal, `/tmp/autoclip-run.txt` menyebut tahap yang gagal dan kode error sistem, misalnya `Gagal pada tahap "Menyalin audio": Cannot Open [AVFoundationErrorDomain -11829]`. Jika penyebabnya codec, pesan juga menyarankan konversi ke MP4 H.264 + AAC.
 
+- [ ] Pilihan bahasa berisi 19 bahasa. Video berbahasa Inggris memakai "Inggris (AS)".
+- [ ] Video dengan bagian yang rusak tetap diproses. Bagian rusak dilewati, dan klip tidak mengambil bagian itu.
 - [ ] Tombol "Buka di editor" membuka hasil sebagai proyek. Klip sudah berurutan di track video dan bisa diatur ulang.
 - [ ] Jika kamu menutup panel saat proses berjalan, proses tetap berjalan. Tombol tutup baru aktif setelah selesai.
 

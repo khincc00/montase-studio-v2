@@ -165,10 +165,8 @@ struct AutoClipPanel: View {
             VStack(alignment: .leading, spacing: 6) {
                 Text("Bahasa ucapan").font(.caption).foregroundStyle(Theme.textSecondary)
                 Picker("Bahasa", selection: $localeIdentifier) {
-                    Text("Indonesia").tag("id-ID")
-                    Text("English").tag("en-US")
+                    ForEach(AutoClipLanguage.all) { Text($0.name).tag($0.id) }
                 }
-                .pickerStyle(.segmented)
                 .labelsHidden()
                 .disabled(runner.stage.isBusy)
                 .hoverHelp("Bahasa yang diucapkan di video. Model offline harus sudah terpasang.")

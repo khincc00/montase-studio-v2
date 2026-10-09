@@ -88,6 +88,7 @@ final class AutoClipRunner {
 
     private func run(_ request: Request, exporter: ExportController) async {
         var audioURL: URL?
+        var damagedRanges: [ClosedRange<Double>] = []
         defer {
             if let audioURL { try? FileManager.default.removeItem(at: audioURL) }
         }
@@ -97,9 +98,11 @@ final class AutoClipRunner {
             try Task.checkCancellation()
 
             stage = .extractingAudio
-            audioURL = try await Self.step("Menyalin audio") {
+            let extracted = try await Self.step("Menyalin audio") {
                 try await AutoClipTranscriber.extractAudio(from: request.source)
             }
+            audioURL = extracted.url
+            damagedRanges = extracted.damaged
             try Task.checkCancellation()
 
             stage = .transcribing
@@ -111,7 +114,7 @@ final class AutoClipRunner {
 
             stage = .planning
             let silences = (try? AutoClipSilence.detect(in: audioURL!)) ?? []
-            let topics = AutoClipPlanner.analyze(words: words, silences: silences)
+            let topics = AutoClipPlanner.analyze(words: words, silences: silences, damaged: damagedRanges)
             topicCount = topics.count
             let outputs = AutoClipPlanner.compose(topics: topics, count: request.count)
             guard !outputs.isEmpty else {

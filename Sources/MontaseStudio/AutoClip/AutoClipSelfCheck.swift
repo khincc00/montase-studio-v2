@@ -5,15 +5,17 @@ import Foundation
 /// Dijalankan lewat `open` agar aplikasi sendiri yang meminta izin pengenalan suara, bukan terminal.
 @MainActor
 enum AutoClipSelfCheck {
-    static func run(path: String, outputPath: String) {
+    static func run(path: String, outputPath: String, localeIdentifier: String = "id-ID") {
         Task { @MainActor in
             var lines: [String] = []
             do {
                 try await AutoClipTranscriber.requestAuthorization()
-                let audio = try await AutoClipTranscriber.extractAudio(from: URL(fileURLWithPath: path))
+                let extracted = try await AutoClipTranscriber.extractAudio(from: URL(fileURLWithPath: path))
+                let audio = extracted.url
                 defer { try? FileManager.default.removeItem(at: audio) }
+                lines.append("RUSAK (detik): " + (extracted.damaged.isEmpty ? "tidak ada" : extracted.damaged.map { String(format: "%.0f-%.0f", $0.lowerBound, $0.upperBound) }.joined(separator: ", ")))
 
-                let words = try await AutoClipTranscriber.transcribe(audioURL: audio, localeIdentifier: "id-ID")
+                let words = try await AutoClipTranscriber.transcribe(audioURL: audio, localeIdentifier: localeIdentifier)
                 lines.append("KATA: \(words.count)")
                 lines.append("TRANSKRIP: " + words.map(\.text).joined(separator: " "))
                 lines.append("KATA BERWAKTU:")
@@ -32,7 +34,7 @@ enum AutoClipSelfCheck {
                 for silence in silences {
                     lines.append(String(format: "  %.2f - %.2f dtk (%.2f)", silence.start, silence.end, silence.end - silence.start))
                 }
-                let topics = AutoClipPlanner.analyze(words: words, silences: silences)
+                let topics = AutoClipPlanner.analyze(words: words, silences: silences, damaged: extracted.damaged)
                 lines.append("TOPIK: \(topics.count)")
                 for topic in topics {
                     for segment in topic.segments {
@@ -53,7 +55,7 @@ enum AutoClipSelfCheck {
 extension AutoClipSelfCheck {
     /// Menjalankan seluruh proses Auto Clip seperti dari panel, termasuk ekspor, lalu menulis tahap dan hasilnya.
     /// Dipakai: `--autoclip-run <berkas> --autoclip-out <hasil.txt> --autoclip-count <n>`.
-    static func runFull(path: String, outputPath: String, count: Int) {
+    static func runFull(path: String, outputPath: String, count: Int, localeIdentifier: String = "id-ID") {
         let folder = FileManager.default.temporaryDirectory.appendingPathComponent("autoclip-run-\(UUID().uuidString)")
         let runner = AutoClipRunner()
         let exporter = ExportController()
@@ -63,7 +65,7 @@ extension AutoClipSelfCheck {
                 sourceItem: nil,
                 count: count,
                 orientation: .portrait,
-                localeIdentifier: "id-ID",
+                localeIdentifier: localeIdentifier,
                 folder: folder
             ),
             exporter: exporter

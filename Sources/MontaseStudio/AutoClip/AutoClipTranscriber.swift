@@ -45,24 +45,116 @@ enum AutoClipTranscriber {
         guard status == .authorized else { throw TranscribeError.unauthorized }
     }
 
-    /// Menyalin track audio ke berkas M4A sementara. Berkas ini dihapus oleh pemanggil setelah selesai.
-    static func extractAudio(from url: URL) async throws -> URL {
-        let asset = AVURLAsset(url: url)
-        guard try await !asset.loadTracks(withMediaType: .audio).isEmpty else { throw TranscribeError.noAudio }
-        guard let session = AVAssetExportSession(asset: asset, presetName: AVAssetExportPresetAppleM4A) else {
-            throw TranscribeError.failed("ekspor audio tidak didukung untuk media ini")
-        }
-        let output = FileManager.default.temporaryDirectory.appendingPathComponent("autoclip-\(UUID().uuidString).m4a")
-        session.outputURL = output
-        session.outputFileType = .m4a
+    /// Hasil salin audio: berkas WAV mono 16 kHz dan rentang waktu yang tidak bisa dibaca macOS.
+    struct ExtractedAudio {
+        let url: URL
+        let duration: Double
+        /// Rentang (detik) yang gagal didekode. Di berkas WAV, rentang ini diisi sunyi.
+        let damaged: [ClosedRange<Double>]
+    }
 
-        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            session.exportAsynchronously { continuation.resume() }
+    /// Ukuran potongan pembacaan. Kegagalan decode dicatat per potongan, sehingga bagian rusak tidak menggagalkan seluruh file.
+    static let chunkSeconds = 10.0
+    static let sampleRate = 16_000.0
+
+    /// Menyalin audio ke WAV mono 16 kHz, sepotong demi sepotong. Potongan yang tidak bisa didekode diisi sunyi.
+    static func extractAudio(from url: URL) async throws -> ExtractedAudio {
+        let asset = AVURLAsset(url: url)
+        guard let track = try await asset.loadTracks(withMediaType: .audio).first else { throw TranscribeError.noAudio }
+        let total = try await asset.load(.duration).seconds
+        guard total.isFinite, total > 0 else { throw TranscribeError.noAudio }
+
+        let output = FileManager.default.temporaryDirectory.appendingPathComponent("autoclip-\(UUID().uuidString).wav")
+        let format = AVAudioFormat(standardFormatWithSampleRate: sampleRate, channels: 1)!
+        let file = try AVAudioFile(
+            forWriting: output,
+            settings: [
+                AVFormatIDKey: kAudioFormatLinearPCM,
+                AVSampleRateKey: sampleRate,
+                AVNumberOfChannelsKey: 1,
+                AVLinearPCMBitDepthKey: 16,
+                AVLinearPCMIsFloatKey: false,
+                AVLinearPCMIsBigEndianKey: false,
+            ]
+        )
+
+        var damaged: [ClosedRange<Double>] = []
+        var start = 0.0
+        while start < total {
+            try Task.checkCancellation()
+            let length = min(chunkSeconds, total - start)
+            let expected = Int(length * sampleRate)
+            var samples = [Float]()
+            samples.reserveCapacity(expected)
+            if readChunk(track: track, asset: asset, start: start, length: length, into: &samples) {
+                if samples.count < expected {
+                    samples += [Float](repeating: 0, count: expected - samples.count)
+                }
+            } else {
+                samples = [Float](repeating: 0, count: expected)
+                damaged.append(start...(start + length))
+            }
+            try write(samples, to: file, format: format)
+            start += length
         }
-        guard session.status == .completed else {
-            throw TranscribeError.failed(session.error?.localizedDescription ?? "audio tidak bisa disalin")
+        return ExtractedAudio(url: output, duration: total, damaged: mergeRanges(damaged))
+    }
+
+    /// Membaca satu potongan. Mengembalikan false jika AVFoundation melaporkan kegagalan di potongan itu.
+    private static func readChunk(track: AVAssetTrack, asset: AVAsset, start: Double, length: Double, into samples: inout [Float]) -> Bool {
+        guard let reader = try? AVAssetReader(asset: asset) else { return false }
+        reader.timeRange = CMTimeRange(
+            start: CMTime(seconds: start, preferredTimescale: 600),
+            duration: CMTime(seconds: length, preferredTimescale: 600)
+        )
+        let output = AVAssetReaderTrackOutput(track: track, outputSettings: [
+            AVFormatIDKey: kAudioFormatLinearPCM,
+            AVSampleRateKey: sampleRate,
+            AVNumberOfChannelsKey: 1,
+            AVLinearPCMBitDepthKey: 32,
+            AVLinearPCMIsFloatKey: true,
+            AVLinearPCMIsBigEndianKey: false,
+            AVLinearPCMIsNonInterleaved: false,
+        ])
+        reader.add(output)
+        guard reader.startReading() else { return false }
+
+        while let buffer = output.copyNextSampleBuffer() {
+            guard let block = CMSampleBufferGetDataBuffer(buffer) else { continue }
+            let byteCount = CMBlockBufferGetDataLength(block)
+            var bytes = [UInt8](repeating: 0, count: byteCount)
+            CMBlockBufferCopyDataBytes(block, atOffset: 0, dataLength: byteCount, destination: &bytes)
+            bytes.withUnsafeBytes { raw in
+                for index in 0..<(byteCount / MemoryLayout<Float>.size) {
+                    samples.append(raw.loadUnaligned(fromByteOffset: index * MemoryLayout<Float>.size, as: Float.self))
+                }
+            }
         }
-        return output
+        return reader.status == .completed
+    }
+
+    private static func write(_ samples: [Float], to file: AVAudioFile, format: AVAudioFormat) throws {
+        guard !samples.isEmpty, let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(samples.count)) else { return }
+        buffer.frameLength = AVAudioFrameCount(samples.count)
+        if let channel = buffer.floatChannelData?[0] {
+            for (index, sample) in samples.enumerated() {
+                channel[index] = sample
+            }
+        }
+        try file.write(from: buffer)
+    }
+
+    /// Menggabungkan rentang yang bersambung atau berdekatan.
+    static func mergeRanges(_ ranges: [ClosedRange<Double>]) -> [ClosedRange<Double>] {
+        var merged: [ClosedRange<Double>] = []
+        for range in ranges.sorted(by: { $0.lowerBound < $1.lowerBound }) {
+            if let last = merged.last, range.lowerBound <= last.upperBound + 0.001 {
+                merged[merged.count - 1] = last.lowerBound...max(last.upperBound, range.upperBound)
+            } else {
+                merged.append(range)
+            }
+        }
+        return merged
     }
 
     /// Mengenali ucapan secara on-device dan mengembalikan setiap kata dengan waktunya.

@@ -284,7 +284,11 @@ enum AutoClipPlanner {
     // MARK: - Pipeline
 
     /// Menjalankan seluruh tahap: kalimat → topik → segmen → skor.
-    static func analyze(words: [SpokenWord], silences: [SilenceInterval] = []) -> [Topic] {
+    /// `damaged` berisi rentang audio yang tidak bisa dibaca; kata di dalamnya dibuang agar tidak dipakai di klip.
+    static func analyze(words input: [SpokenWord], silences: [SilenceInterval] = [], damaged: [ClosedRange<Double>] = []) -> [Topic] {
+        let words = damaged.isEmpty ? input : input.filter { word in
+            !damaged.contains { $0.overlaps(word.start...max(word.end, word.start)) }
+        }
         let groups = topicGroups(sentences(from: words, silences: silences))
         var topics: [Topic] = []
 
