@@ -31,18 +31,21 @@ final class RegressionTests: XCTestCase {
 
     // MARK: - Undo
 
-    func testUndoHistoryIsNotCapped() {
+    func testUndoHistoryIsCappedAt50() {
         let store = EditorStore()
-        for _ in 0..<250 {
+        let initialTracks = store.project.tracks.count
+        for _ in 0..<60 {
             store.addTrack(kind: .video)
         }
-        XCTAssertEqual(store.undoSteps.count, 250)
+        XCTAssertEqual(store.undoSteps.count, EditorStore.undoLimit)
+        XCTAssertEqual(EditorStore.undoLimit, 50)
 
-        for _ in 0..<250 {
+        // Hanya 50 langkah yang bisa diurungkan; 10 langkah terlama sudah tidak bisa dikembalikan.
+        for _ in 0..<50 {
             store.undo()
         }
         XCTAssertFalse(store.canUndo)
-        XCTAssertEqual(store.project.tracks.count, Project.makeDefaultTracks().count)
+        XCTAssertEqual(store.project.tracks.count, initialTracks + 10)
     }
 
     // MARK: - Penyimpanan

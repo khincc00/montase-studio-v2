@@ -152,10 +152,6 @@ private struct MediaTile: View {
         }
         .contextMenu {
             Button("Tambah ke Timeline") { app.store.addToTimeline(mediaID: item.id) }
-            if item.hasVideo {
-                Button("Buat Proxy") { app.requestProxy(for: item) }
-                    .disabled(app.proxies.status(for: item) == .ready)
-            }
             Menu("Pindahkan ke Folder") {
                 Button("Tanpa Folder") { app.store.setFolder(mediaID: item.id, folder: "") }
                 ForEach(folders, id: \.self) { name in
@@ -179,24 +175,6 @@ private struct MediaTile: View {
             Label("File hilang", systemImage: "exclamationmark.triangle.fill")
                 .font(.caption2)
                 .foregroundStyle(Theme.warning)
-        } else if item.hasVideo {
-            switch app.proxies.status(for: item) {
-            case .ready:
-                Label("Proxy siap", systemImage: "checkmark.circle")
-                    .font(.caption2)
-                    .foregroundStyle(Theme.textSecondary)
-            case .queued:
-                Label("Proxy dalam antrean", systemImage: "clock")
-                    .font(.caption2)
-                    .foregroundStyle(Theme.textSecondary)
-            case .generating(let value):
-                ProgressView(value: value)
-                    .controlSize(.mini)
-            case .failed(let message):
-                Text(message).font(.caption2).foregroundStyle(Theme.warning).lineLimit(1)
-            case .none:
-                EmptyView()
-            }
         }
     }
 }

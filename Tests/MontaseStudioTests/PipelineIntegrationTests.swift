@@ -210,37 +210,6 @@ final class PipelineIntegrationTests: XCTestCase {
         print("PERF export 1080p H.264, timeline \(project.duration.seconds) s, real time \(elapsed)")
     }
 
-    // MARK: - Proxy untuk sumber 4K
-
-    func testProxyIsGeneratedForUHDSource() async throws {
-        let item = try await MediaImporter.probe(makeUHD())
-        XCTAssertTrue(item.isLarge)
-
-        let proxies = ProxyManager()
-        proxies.request([item])
-        var waited = 0
-        while proxies.status(for: item) == .queued || isGenerating(proxies.status(for: item)), waited < 240 {
-            try await Task.sleep(for: .milliseconds(250))
-            waited += 1
-        }
-
-        XCTAssertEqual(proxies.status(for: item), .ready, "status: \(proxies.status(for: item))")
-        let proxyURL = ProxyManager.url(for: item.id)
-        defer { try? FileManager.default.removeItem(at: proxyURL) }
-
-        let proxy = AVURLAsset(url: proxyURL)
-        let proxyTracks = try await proxy.loadTracks(withMediaType: .video)
-        let track = try XCTUnwrap(proxyTracks.first)
-        let size = try await track.load(.naturalSize)
-        XCTAssertLessThanOrEqual(max(size.width, size.height), 960)
-        XCTAssertEqual(size.width / size.height, 16.0 / 9.0, accuracy: 0.02)
-    }
-
-    private func isGenerating(_ status: ProxyManager.Status) -> Bool {
-        if case .generating = status { return true }
-        return false
-    }
-
     /// Timeline yang hanya berisi audio dari file video harus tetap punya komposisi video (layar hitam),
     /// bukan memperlihatkan frame dari filler yang berasal dari file sumber.
     func testAudioOnlyTimelineFromVideoFileHasVideoComposition() async throws {

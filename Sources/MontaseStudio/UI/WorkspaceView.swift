@@ -155,18 +155,6 @@ private struct StatusBar: View {
 
     private var store: EditorStore { app.store }
 
-    private var proxySummary: (ready: Int, pending: Int) {
-        let videos = store.project.media.filter(\.hasVideo)
-        let ready = videos.filter { app.proxies.status(for: $0) == .ready }.count
-        let pending = videos.filter {
-            switch app.proxies.status(for: $0) {
-            case .queued, .generating: return true
-            default: return false
-            }
-        }.count
-        return (ready, pending)
-    }
-
     var body: some View {
         HStack(spacing: 14) {
             Label(
@@ -175,16 +163,6 @@ private struct StatusBar: View {
             )
             Text("Klip \(store.project.clipCount)")
             Text("Durasi \(store.project.duration.clockString)")
-
-            let summary = proxySummary
-            Text("Proxy: \(summary.ready) siap · \(summary.pending) antre")
-                .foregroundStyle(app.proxies.isPaused ? Theme.warning : Theme.textSecondary)
-
-            if app.memoryPressure {
-                Button("Tekanan memori · lanjutkan proxy") { app.resumeAfterMemoryPressure() }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(Theme.warning)
-            }
 
             if let notice = store.notice {
                 Text(notice)

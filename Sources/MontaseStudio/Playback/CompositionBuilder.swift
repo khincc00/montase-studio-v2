@@ -3,13 +3,11 @@ import CoreGraphics
 import Foundation
 
 /// Mengubah proyek menjadi komposisi AVFoundation dengan compositor kustom.
-/// Dipakai bersama oleh preview dan export. Sumbernya file asli, atau proxy bila diminta.
+/// Dipakai bersama oleh preview dan export. Sumbernya selalu file asli.
 enum CompositionBuilder {
     struct Options {
         var renderSize: CGSize
         var frameRate: Int = 30
-        /// Mengembalikan proxy untuk media tertentu; nil berarti memakai file asli.
-        var proxyURL: (MediaItem) -> URL? = { _ in nil }
         /// False menampilkan sumber tanpa transform, warna, fade, dan opacity (mode Sebelum).
         var applyEffects = true
     }
@@ -59,7 +57,7 @@ enum CompositionBuilder {
                         skipped += 1
                         continue
                     }
-                    let url = options.proxyURL(item) ?? item.url
+                    let url = item.url
                     guard FileManager.default.fileExists(atPath: url.path) else {
                         skipped += 1
                         continue

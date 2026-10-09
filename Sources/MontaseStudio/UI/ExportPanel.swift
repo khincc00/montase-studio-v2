@@ -60,7 +60,7 @@ struct ExportPanel: View {
                 .labelsHidden()
             }
 
-            Text("Sumber: file asli (bukan proxy). Efek, transform, teks, dan EQ ikut diekspor.")
+            Text("Sumber: file asli. Efek, transform, teks, dan EQ ikut diekspor.")
                 .font(.caption)
                 .foregroundStyle(Theme.textSecondary)
         }

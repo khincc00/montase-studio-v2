@@ -77,7 +77,6 @@ struct MediaItem: Codable, Identifiable, Equatable {
 
     var url: URL { URL(fileURLWithPath: path) }
     var kind: TrackKind { hasVideo ? .video : .audio }
-    var isLarge: Bool { hasVideo && max(width, height) >= 3000 }
 }
 
 /// Potongan di timeline: media, atau teks (title) jika `title` terisi.

@@ -74,13 +74,6 @@ private struct TransportBar: View {
 
             Spacer()
 
-            Toggle("Proxy", isOn: Binding(
-                get: { app.store.useProxies },
-                set: { app.store.useProxies = $0; app.refreshPreview() }
-            ))
-            .toggleStyle(.checkbox)
-            .help("Pakai proxy untuk preview bila sudah siap")
-
             Picker("Kualitas", selection: quality) {
                 ForEach(PreviewQuality.allCases) { Text($0.title).tag($0) }
             }

@@ -62,12 +62,6 @@ struct EditorCommands: Commands {
             Button("Lepas Tautan") { app.store.unlinkSelected() }
             Button("Pisahkan Audio dari Video") { app.store.detachAudioSelected() }
             Divider()
-            Button("Buat Proxy untuk Media Terpilih") {
-                if let clip = app.store.selectedClip, let mediaID = clip.mediaID,
-                   let item = app.store.project.mediaItem(id: mediaID) {
-                    app.requestProxy(for: item)
-                }
-            }
             Button("Ekspor…") { app.show(.export) }
                 .keyboardShortcut("e")
         }

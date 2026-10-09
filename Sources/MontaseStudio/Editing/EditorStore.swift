@@ -11,6 +11,9 @@ final class EditorStore {
     }
 
     private(set) var project: Project
+    /// Jumlah langkah undo yang disimpan. Langkah terlama dibuang saat batas terlampaui.
+    static let undoLimit = 50
+
     private(set) var undoSteps: [Step] = []
     private(set) var redoSteps: [Step] = []
     private(set) var fileURL: URL?
@@ -21,8 +24,6 @@ final class EditorStore {
     var selectedClipID: UUID?
     var pixelsPerSecond: Double = 40
     var snappingEnabled = true
-    /// Preview memakai proxy bila sudah siap.
-    var useProxies = true
 
     /// Dipanggil setelah setiap perubahan proyek; dipakai untuk autosave dan rebuild preview.
     @ObservationIgnored var didChange: (() -> Void)?
@@ -45,6 +46,7 @@ final class EditorStore {
         guard project != before else { return }
 
         undoSteps.append(Step(label: label, project: before))
+        if undoSteps.count > Self.undoLimit { undoSteps.removeFirst() }
         redoSteps.removeAll()
         finishChange()
     }

@@ -28,12 +28,11 @@ struct PaletteCommand: Identifiable {
     let action: () -> Void
 }
 
-/// Titik pusat state aplikasi. Editor, playback, proxy, dan export dibagi ke seluruh UI dan menu.
+/// Titik pusat state aplikasi. Editor, playback, dan export dibagi ke seluruh UI dan menu.
 @MainActor
 @Observable
 final class AppState {
     let store: EditorStore
-    let proxies: ProxyManager
     let waveforms = WaveformStore()
     let scopes = ScopeStore()
     let playback: PlaybackController
@@ -42,8 +41,6 @@ final class AppState {
     var workspace: Workspace = .edit
     var isPaletteOpen = false
     var alertMessage: String?
-    /// Tekanan memori aktif: pembuatan proxy dijeda dan kualitas preview diturunkan.
-    private(set) var memoryPressure = false
 
     @ObservationIgnored private var autosaveTask: Task<Void, Never>?
     @ObservationIgnored private var autosaveFailed = false
@@ -61,13 +58,10 @@ final class AppState {
             }
         }
         let store = EditorStore(project: recovered ?? Project(), hasUnsavedChanges: recovered != nil)
-        let proxies = ProxyManager()
         self.store = store
-        self.proxies = proxies
-        self.playback = PlaybackController(store: store, proxies: proxies)
+        self.playback = PlaybackController(store: store)
 
         store.didChange = { [weak self] in self?.projectDidChange() }
-        proxies.onReadyChange = { [weak self] in self?.refreshPreview() }
         playback.onFrameChanged = { [weak self] in self?.refreshScope() }
         startMemoryPressureMonitor()
 
@@ -95,35 +89,28 @@ final class AppState {
         scopes.refresh(output: playback.lastOutput, at: store.playhead)
     }
 
-    /// Gelombang dan proxy otomatis untuk media besar. Keduanya idempotent, jadi aman dipanggil setiap perubahan.
+    /// Gelombang untuk setiap media. Idempotent, jadi aman dipanggil setiap perubahan.
     private func ensureMediaWork() {
         for item in store.project.media {
             waveforms.request(item)
         }
-        proxies.request(store.project.media.filter(\.isLarge))
     }
 
+    /// Tekanan memori menurunkan kualitas preview. Kualitas kembali normal saat tekanan berakhir.
     private func startMemoryPressureMonitor() {
         let source = DispatchSource.makeMemoryPressureSource(eventMask: [.warning, .critical], queue: .main)
         source.setEventHandler { [weak self] in
             Task { @MainActor in
                 guard let self, let source = self.pressureSource else { return }
                 let critical = source.data.contains(.critical)
-                self.proxies.pause()
-                self.playback.quality = critical ? .quarter : .half
-                self.memoryPressure = true
-                self.store.notify("Tekanan memori: pembuatan proxy dijeda.")
+                if self.playback.quality != .quarter {
+                    self.playback.quality = critical ? .quarter : .half
+                    self.store.notify("Tekanan memori: kualitas preview diturunkan.")
+                }
             }
         }
         source.resume()
         pressureSource = source
-    }
-
-    /// Melanjutkan proxy setelah tekanan memori mereda. Dipanggil manual dari status bar.
-    func resumeAfterMemoryPressure() {
-        memoryPressure = false
-        playback.quality = .half
-        proxies.resume()
     }
 
     // MARK: - Dokumen
@@ -283,11 +270,6 @@ final class AppState {
         }
     }
 
-    /// Membuat proxy untuk media terpilih. Media yang sudah punya proxy dilewati.
-    func requestProxy(for item: MediaItem) {
-        proxies.request([item], retryFailed: true)
-    }
-
     // MARK: - Workspace, export, dan palette
 
     func show(_ workspace: Workspace) {
@@ -341,7 +323,6 @@ final class AppState {
             PaletteCommand(title: "Tambah Track Video", shortcut: "") { self.store.addTrack(kind: .video) },
             PaletteCommand(title: "Tambah Track Audio", shortcut: "") { self.store.addTrack(kind: .audio) },
             PaletteCommand(title: "Aktifkan / Matikan Snap", shortcut: "") { self.store.snappingEnabled.toggle() },
-            PaletteCommand(title: "Gunakan Proxy untuk Preview", shortcut: "") { self.store.useProxies.toggle(); self.refreshPreview() },
             PaletteCommand(title: "Tampilkan Sebelum / Sesudah", shortcut: "") { self.playback.showOriginal.toggle(); self.refreshPreview() },
             PaletteCommand(title: "Workspace Edit", shortcut: "⌘1") { self.show(.edit) },
             PaletteCommand(title: "Workspace Color", shortcut: "⌘2") { self.show(.color) },

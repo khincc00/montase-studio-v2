@@ -7,23 +7,26 @@ Editor video native macOS (Swift 6.4 toolchain, SwiftUI, AVFoundation, Core Imag
 Butuh macOS 14+ dan Xcode 15+ (dikembangkan dengan Xcode 27).
 
 ```bash
-open Package.swift   # buka di Xcode, lalu Run (⌘R)
-swift test           # unit test + uji integrasi
+./scripts/run-app.sh            # bangun dan buka aplikasi (.app di folder build/)
+./scripts/test.sh               # jalankan semua test; laporan dan frame hasil render ke TestReports/
+./scripts/make-sample-media.sh  # buat media uji di ~/Movies/Montase Uji (butuh ffmpeg)
 ```
+
+Untuk pengujian manual, ikuti [TESTING.md](TESTING.md). Alternatifnya, buka `Package.swift` di Xcode lalu Run (⌘R).
 
 Uji integrasi membuat media uji dengan ffmpeg (`/opt/homebrew/bin/ffmpeg` atau `/usr/local/bin/ffmpeg`). Tanpa ffmpeg, uji tersebut dilewati, bukan gagal.
 
 ## Fitur
 
-- **Library:** impor (⌘I) atau seret file, pencarian, folder, thumbnail, relink media yang hilang, status proxy.
+- **Library:** impor (⌘I) atau seret file, pencarian, folder, thumbnail, relink media yang hilang.
 - **Timeline:** multitrack V/A dengan tambah dan hapus track, scroll vertikal dan horizontal, seret untuk pindah (dengan grup tautan), seret tepi untuk trim, snap ke playhead, marker, dan tepi clip.
-- **Edit:** belah (S), hapus (⌫), hapus & rapatkan, duplikat, speed 0,25×–4×, fade masuk/keluar (dissolve sebagai fade di atas lapisan bawah), tautkan dan lepas, pisahkan audio ke track audio, tambah teks, undo/redo tak terbatas per sesi.
+- **Edit:** belah (S), hapus (⌫), hapus & rapatkan, duplikat, speed 0,25×–4×, fade masuk/keluar (dissolve sebagai fade di atas lapisan bawah), tautkan dan lepas, pisahkan audio ke track audio, tambah teks, undo/redo hingga 50 langkah per sesi.
 - **Transform dan warna:** posisi, skala, rotasi, crop (diterapkan sebelum rotasi), exposure, kontras, saturasi, suhu, tint, highlights, shadows, LUT `.cube` dengan intensitas, mode Sebelum/Sesudah, scope histogram.
 - **Audio:** fader dan mute/solo per track, EQ tiga pita (low shelf 120 Hz, peaking 1 kHz, high shelf 8 kHz), meter dari puncak sumber di playhead, gelombang di clip.
-- **Preview:** AVPlayer dengan compositor Core Image kustom; kualitas penuh, ½, atau ¼; proxy 960 px otomatis untuk sumber 4K.
+- **Preview:** AVPlayer dengan compositor Core Image kustom; kualitas penuh, ½, atau ¼.
 - **Export:** 1080p atau 4K, landscape, portrait, atau square; H.264 atau HEVC; kualitas standar atau tinggi (bitrate ×1,6); progres dan pembatalan.
 - **Proyek:** simpan/buka `.montase` (JSON, penulisan atomik), autosave pemulihan, migrasi dari schema 1.
-- **Lain-lain:** command palette (⌘K), workspace Edit / Color / Audio / Export (⌘1–⌘4), tekanan memori menjeda pembuatan proxy.
+- **Lain-lain:** command palette (⌘K), workspace Edit / Color / Audio / Export (⌘1–⌘4), tekanan memori menurunkan kualitas preview.
 
 ## Pintasan
 
@@ -47,17 +50,21 @@ Sources/MontaseStudio/
   App/        AppState, entry point, menu
   Model/      Project, Track, Clip, MediaItem, Ticks (waktu integer 1/60.000 detik)
   Editing/    EditorStore (undo/redo, operasi timeline), penyimpanan proyek
-  Media/      MediaImporter, ProxyManager, WaveformStore, LUTLoader
+  Media/      MediaImporter, WaveformStore, LUTLoader
   Playback/   CompositionBuilder, EffectCompositor (Core Image), PlaybackController,
               ScopeStore, AudioEQ (MTAudioProcessingTap), BlankClip
   Export/     ExportController, Transcoder (AVAssetReader/Writer)
   UI/         Workspace, Library, Viewer, Timeline, Inspector, Color, Audio, Export, palette
 Tests/MontaseStudioTests/
   ProjectEditingTests, FeatureTests          unit test model
-  PipelineIntegrationTests                   ekspor end-to-end, proxy, teks-saja, performa
+  PipelineIntegrationTests                   ekspor end-to-end, teks-saja, performa
   FlashTimingTests, FrameLagTests            verifikasi timing dan warna export vs sumber
   UIRenderTests                              render setiap workspace (tanpa window)
 ```
+
+## Lisensi
+
+MIT. Lihat [LICENSE](LICENSE).
 
 ## Catatan teknis penting
 
@@ -74,3 +81,4 @@ Tests/MontaseStudioTests/
 - Target performa blueprint belum diukur pada M1 8 GB. Pengukuran di Apple M4 16 GB: export timeline 31 detik 1080p H.264 dengan efek selesai dalam ±4,8 detik.
 - Verifikasi GUI: render SwiftUI offscreen memastikan layout dibangun, tetapi isi di dalam `ScrollView` dan ikon SF Symbol tidak terlihat di render itu. Interaksi (drag, trim, pintasan) belum diuji dengan klik sungguhan karena screenshot layar tidak diizinkan di lingkungan ini.
 - Timeline hanya-teks memakai klip hitam sementara sebagai sumber filler.
+- Proxy sudah dihapus untuk menjaga aplikasi tetap ringan. Preview selalu memakai file asli, sehingga sumber 4K bisa terasa berat di Mac dengan RAM kecil; gunakan kualitas ½ atau ¼ di panel Viewer.

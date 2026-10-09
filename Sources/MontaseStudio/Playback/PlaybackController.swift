@@ -37,12 +37,10 @@ final class PlaybackController {
     @ObservationIgnored private(set) var lastOutput: CompositionBuilder.Output?
     @ObservationIgnored var onFrameChanged: (() -> Void)?
     @ObservationIgnored private let store: EditorStore
-    @ObservationIgnored private let proxies: ProxyManager
     @ObservationIgnored private var rebuildTask: Task<Void, Never>?
 
-    init(store: EditorStore, proxies: ProxyManager) {
+    init(store: EditorStore) {
         self.store = store
-        self.proxies = proxies
         // Playhead mengikuti pemutaran. Seek dari UI lewat `seek(to:)`.
         _ = player.addPeriodicTimeObserver(forInterval: CMTime(value: 1, timescale: 30), queue: .main) { [weak self] time in
             MainActor.assumeIsolated {
@@ -98,20 +96,10 @@ final class PlaybackController {
             return
         }
 
-        // Peta proxy dihitung di sini agar builder tidak menyentuh state aktor utama.
-        let useProxies = store.useProxies
-        var proxyMap: [UUID: URL] = [:]
-        if useProxies {
-            for item in project.media {
-                if let url = proxies.proxyURL(for: item) { proxyMap[item.id] = url }
-            }
-        }
-
         do {
             let options = CompositionBuilder.Options(
                 renderSize: project.sequence.renderSize,
                 frameRate: project.sequence.frameRate,
-                proxyURL: { proxyMap[$0.id] },
                 applyEffects: !showOriginal
             )
             let output = try await CompositionBuilder.build(project: project, options: options)
