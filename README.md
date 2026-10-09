@@ -26,6 +26,7 @@ Uji integrasi membuat media uji dengan ffmpeg (`/opt/homebrew/bin/ffmpeg` atau `
 - **Preview:** AVPlayer dengan compositor Core Image kustom; kualitas penuh, ½, atau ¼.
 - **Export:** 1080p atau 4K, landscape, portrait, atau square; H.264 atau HEVC; kualitas standar atau tinggi (bitrate ×1,6); progres dan pembatalan.
 - **Proyek:** simpan/buka `.montase` (JSON, penulisan atomik), autosave pemulihan, migrasi dari schema 1.
+- **Auto Clip:** pilih video, lalu aplikasi mentranskripsi ucapan di Mac (on-device), membagi topik dan segmen 5–120 detik, memberi skor viral, dan mengekspor video final 30–90 detik beserta `autoclip-analisis.json`. Skor memakai aturan heuristik lokal, bukan model bahasa.
 - **Lain-lain:** command palette (⌘K), workspace Edit / Color / Audio / Export (⌘1–⌘4), tekanan memori menurunkan kualitas preview.
 
 ## Pintasan

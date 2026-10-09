@@ -50,6 +50,28 @@ final class UIRenderTests: XCTestCase {
         }
     }
 
+    /// Render panel Auto Clip sebagai jendela sungguhan, untuk ditinjau.
+    func testRenderAutoClipPanel() throws {
+        let app = sampleApp()
+        let hosting = NSHostingView(rootView: AutoClipPanel(app: app).preferredColorScheme(.dark))
+        hosting.frame = NSRect(x: 0, y: 0, width: 620, height: 680)
+        let window = NSWindow(contentRect: hosting.frame, styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = hosting
+        window.orderBack(nil)
+        hosting.layoutSubtreeIfNeeded()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.4))
+        hosting.layoutSubtreeIfNeeded()
+
+        let rep = try XCTUnwrap(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
+        hosting.cacheDisplay(in: hosting.bounds, to: rep)
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("MontaseIT-frames/window-autoclip.png")
+        try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try XCTUnwrap(rep.representation(using: .png, properties: [:])).write(to: url)
+        window.contentView = nil
+        window.close()
+    }
+
     /// Merender jendela SwiftUI sungguhan (NSHostingView). Berbeda dengan ImageRenderer, isi ScrollView ikut tergambar,
     /// sehingga timeline, Library, dan Inspector terlihat di gambar.
     func testRenderWindowSnapshots() throws {

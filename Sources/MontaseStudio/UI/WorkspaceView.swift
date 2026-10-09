@@ -51,6 +51,9 @@ struct WorkspaceView: View {
         .sheet(isPresented: $app.isPaletteOpen) {
             CommandPalette(app: app)
         }
+        .sheet(isPresented: $app.isAutoClipOpen) {
+            AutoClipPanel(app: app)
+        }
         .alert("Terjadi kesalahan", isPresented: Binding(
             get: { app.alertMessage != nil },
             set: { if !$0 { app.alertMessage = nil } }
@@ -165,6 +168,9 @@ private struct TopBar: View {
                            isDisabled: !app.store.canUndo) { app.store.undo() }
                 IconButton(systemImage: "arrow.uturn.forward", help: "Ulangi", shortcut: "⇧⌘Z",
                            isDisabled: !app.store.canRedo) { app.store.redo() }
+                IconButton(systemImage: "wand.and.stars", help: "Auto Clip: potong video panjang jadi klip pendek") {
+                    app.isAutoClipOpen = true
+                }
                 IconButton(systemImage: "command", help: "Command palette", shortcut: "⌘K") {
                     app.isPaletteOpen = true
                 }

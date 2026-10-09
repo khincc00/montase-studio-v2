@@ -79,6 +79,22 @@ Dokumen ini untuk menguji Montase Studio langsung di Mac, lalu mencatat hasilnya
 - [ ] Slider (Inspector, Color, Audio): klik di jalur langsung melompat ke posisi itu. Seret mengikuti kursor. Tahan Shift saat menyeret untuk penyesuaian halus. Nilai ditampilkan saat diseret. Klik dua kali mengembalikan ke default. Bagian terisi berawal dari tanda netral.
 - [ ] Workspace Export: kartu pengaturan memenuhi lebar kolom, pratinjau rasio berubah saat orientasi diganti, dan tombol Mulai Ekspor terlihat jelas.
 
+## 8. Auto Clip
+
+Persiapan: impor `landscape-1080p.mp4` (berisi suara). Auto Clip membutuhkan ucapan asli untuk dianalisis. Sumber tone di `make-sample-media.sh` tidak punya ucapan, jadi gunakan rekaman yang berisi kalimat nyata.
+
+- [ ] Tombol tongkat ajaib di bilah atas membuka panel Auto Clip. Perintah "Auto Clip…" juga ada di palet (⌘K).
+- [ ] Pertama kali dijalankan, macOS meminta izin Pengenalan Ucapan. Setelah diizinkan, proses lanjut.
+- [ ] Jika model offline bahasa Indonesia belum terpasang, muncul pesan yang menunjuk ke Pengaturan Sistem > Keyboard > Dikte. Pasang model itu lalu coba lagi.
+- [ ] Setelah dijalankan, tahapan tampil berurutan: izin, salin audio, transkripsi, analisis, lalu ekspor per video.
+- [ ] Tombol Batalkan menghentikan proses. Video yang sudah selesai tetap ada, dan tidak ada berkas setengah jadi di folder hasil.
+- [ ] Folder hasil berisi `autoclip-analisis.json` dan file `01 Judul.mp4`, `02 Judul.mp4`, dan seterusnya.
+- [ ] Buka `autoclip-analisis.json`. Strukturnya memakai `analisis_topik` dan `video_final_siap_posting`, dengan kunci sesuai spesifikasi.
+- [ ] Setiap video final berdurasi 30–90 detik, kecuali yang diberi tanda "di bawah 30 detik". Setiap klip mentah 5 detik sampai 2 menit.
+- [ ] Video hasil dimulai dengan hook, lalu isi, lalu penutup. Potongan selalu berhenti di akhir kalimat.
+- [ ] Tombol "Buka di editor" membuka hasil sebagai proyek. Klip sudah berurutan di track video dan bisa diatur ulang.
+- [ ] Jika kamu menutup panel saat proses berjalan, proses tetap berjalan. Tombol tutup baru aktif setelah selesai.
+
 ## Catatan yang perlu diketahui saat meninjau
 
 - `TestReports/frames-*/window-*.png` adalah render jendela sungguhan (isi timeline, Library, dan Inspector ikut tergambar). Ikon SF Symbol di sana bisa tampil sebagai kotak placeholder. Itu keterbatasan render offscreen, bukan bug aplikasi.

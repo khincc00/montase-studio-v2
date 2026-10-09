@@ -30,6 +30,7 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>NSPrincipalClass</key><string>NSApplication</string>
     <key>NSHighResolutionCapable</key><true/>
     <key>NSSupportsAutomaticGraphicsSwitching</key><true/>
+    <key>NSSpeechRecognitionUsageDescription</key><string>Montase Studio mengenali ucapan di video di Mac ini untuk fitur Auto Clip. Tidak ada audio yang dikirim keluar.</string>
 </dict>
 </plist>
 PLIST

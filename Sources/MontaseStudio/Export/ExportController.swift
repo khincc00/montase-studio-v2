@@ -91,7 +91,9 @@ final class ExportController {
 
     @ObservationIgnored private var session: Transcoder.Session?
 
-    func export(_ project: Project, to url: URL) async {
+    /// Mengekspor proyek. Tanpa `using`, memakai pengaturan panel Export; Auto Clip memberi pengaturannya sendiri.
+    func export(_ project: Project, to url: URL, using options: ExportSettings? = nil) async {
+        let settings = options ?? self.settings
         isRunning = true
         progress = 0
         lastError = nil

@@ -45,9 +45,11 @@ final class AppState {
     let scopes = ScopeStore()
     let playback: PlaybackController
     let exporter = ExportController()
+    let autoClip = AutoClipRunner()
 
     var workspace: Workspace = .edit
     var isPaletteOpen = false
+    var isAutoClipOpen = false
     var alertMessage: String?
 
     @ObservationIgnored private var autosaveTask: Task<Void, Never>?
@@ -309,6 +311,16 @@ final class AppState {
         }
     }
 
+    /// Membuka hasil Auto Clip sebagai proyek di editor. Perubahan yang belum disimpan ditanyakan lebih dulu.
+    func openInEditor(_ project: Project) {
+        guard confirmUnsavedChanges() else { return }
+        store.replaceProject(project, fileURL: nil)
+        ensureMediaWork()
+        refreshPreview()
+        workspace = .edit
+        isAutoClipOpen = false
+    }
+
     var paletteCommands: [PaletteCommand] {
         [
             PaletteCommand(title: "Proyek Baru", shortcut: "⌘N") { self.newProject() },
@@ -337,6 +349,7 @@ final class AppState {
             PaletteCommand(title: "Workspace Audio", shortcut: "⌘3") { self.show(.audio) },
             PaletteCommand(title: "Workspace Export", shortcut: "⌘4") { self.show(.export) },
             PaletteCommand(title: "Ekspor…", shortcut: "⌘E") { self.show(.export) },
+            PaletteCommand(title: "Auto Clip… (potong otomatis)", shortcut: "") { self.isAutoClipOpen = true },
         ]
     }
 }
