@@ -240,4 +240,29 @@ final class PipelineIntegrationTests: XCTestCase {
         if case .generating = status { return true }
         return false
     }
+
+    /// Timeline yang hanya berisi audio dari file video harus tetap punya komposisi video (layar hitam),
+    /// bukan memperlihatkan frame dari filler yang berasal dari file sumber.
+    func testAudioOnlyTimelineFromVideoFileHasVideoComposition() async throws {
+        let url = try makeLandscape()
+        var project = Project()
+        let item = try await MediaImporter.probe(url)
+        project.registerMedia(item)
+        let videoTrack = try XCTUnwrap(project.defaultTrackID(for: .video))
+        let audioIndex = try XCTUnwrap(project.tracks.firstIndex { $0.kind == .audio })
+        _ = project.addClip(mediaID: item.id, toTrack: videoTrack, at: .zero)
+        // Pindahkan klip ke track audio: hanya audionya yang dipakai, video tidak punya lapisan.
+        let clip = try XCTUnwrap(project.tracks.flatMap(\.clips).first)
+        for index in project.tracks.indices {
+            project.tracks[index].clips.removeAll { $0.id == clip.id }
+        }
+        project.tracks[audioIndex].clips.append(clip)
+
+        let output = try await CompositionBuilder.build(
+            project: project,
+            options: .init(renderSize: CGSize(width: 1920, height: 1080))
+        )
+        XCTAssertNotNil(output.videoComposition)
+        XCTAssertEqual(output.composition.tracks(withMediaType: .audio).count, 1)
+    }
 }

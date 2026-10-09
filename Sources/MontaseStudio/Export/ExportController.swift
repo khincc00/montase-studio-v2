@@ -63,10 +63,17 @@ struct ExportSettings: Equatable {
     /// Bitrate target. HEVC membutuhkan sekitar dua pertiga bitrate H.264 untuk kualitas setara.
     var bitrate: Int {
         let base = Double(resolution == .hd ? 12_000_000 : 40_000_000) * quality.multiplier
-        return Int(codec == .hevc ? base * 2 / 3 : base)
+        return Int((codec == .hevc ? base * 2 / 3 : base).rounded())
     }
 
     var videoCodec: AVVideoCodecType { codec == .h264 ? .h264 : .hevc }
+
+    /// Akhiran nama berkas: kosong untuk landscape, agar nama tetap sama dengan proyek.
+    var fileSuffix: String {
+        let width = size.width, height = size.height
+        if width > height { return "" }
+        return width < height ? "-vertikal" : "-persegi"
+    }
 
     func estimatedMegabytes(duration: Ticks) -> Double {
         Double(bitrate) * duration.seconds / 8 / 1_000_000

@@ -36,7 +36,8 @@ final class EffectInstruction: NSObject, AVVideoCompositionInstructionProtocol {
     let timeRange: CMTimeRange
     let enablePostProcessing = false
     let containsTweening = false
-    let requiredSourceTrackIDs: [NSValue]?
+    // Hanya diisi sekali di init dan tidak pernah diubah, sehingga aman dibagi antar antrean.
+    nonisolated(unsafe) let requiredSourceTrackIDs: [NSValue]?
     let passthroughTrackID = kCMPersistentTrackID_Invalid
     let layers: [EffectLayer]
     let canvasSize: CGSize
@@ -65,13 +66,13 @@ final class EffectCompositor: NSObject, AVVideoCompositing {
     private let ciContext = CIContext(options: [.cacheIntermediates: false])
     private let colorSpace = CGColorSpace(name: CGColorSpace.sRGB)
 
-    private static let pixelAttributes: [String: Any] = [
+    private static let pixelAttributes: [String: any Sendable] = [
         kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_32BGRA,
         kCVPixelBufferMetalCompatibilityKey as String: true,
     ]
 
-    var sourcePixelBufferAttributes: [String: Any]? { Self.pixelAttributes }
-    var requiredPixelBufferAttributesForRenderContext: [String: Any] { Self.pixelAttributes }
+    var sourcePixelBufferAttributes: [String: any Sendable]? { Self.pixelAttributes }
+    var requiredPixelBufferAttributesForRenderContext: [String: any Sendable] { Self.pixelAttributes }
 
     func renderContextChanged(_ newRenderContext: AVVideoCompositionRenderContext) {
         renderQueue.sync { self.renderContext = newRenderContext }

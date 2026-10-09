@@ -131,6 +131,7 @@ final class AppState {
     func newProject() {
         guard confirmUnsavedChanges() else { return }
         store.replaceProject(Project(), fileURL: nil)
+        discardRecovery()
     }
 
     func openProject() {
@@ -166,6 +167,7 @@ final class AppState {
         do {
             let project = try ProjectStorage.read(from: url)
             store.replaceProject(project, fileURL: url)
+            discardRecovery()
             ensureMediaWork()
             refreshPreview()
         } catch {
@@ -201,6 +203,14 @@ final class AppState {
                 alertMessage = "Autosave gagal: \(error.localizedDescription). Perubahan terbaru belum terlindungi; simpan proyek secara manual (⌘S)."
             }
         }
+    }
+
+    /// Membatalkan autosave yang tertunda dan menghapus pemulihan. Dipakai saat proyek diganti, agar
+    /// proyek kosong atau proyek yang baru dibuka tidak meninggalkan pemulihan palsu saat aplikasi dibuka lagi.
+    private func discardRecovery() {
+        autosaveTask?.cancel()
+        autosaveFailed = false
+        try? FileManager.default.removeItem(at: ProjectStorage.recoveryURL)
     }
 
     /// Menanyakan sebelum perubahan yang belum disimpan dibuang. Mengembalikan false jika pengguna membatalkan.
@@ -275,7 +285,7 @@ final class AppState {
 
     /// Membuat proxy untuk media terpilih. Media yang sudah punya proxy dilewati.
     func requestProxy(for item: MediaItem) {
-        proxies.request([item])
+        proxies.request([item], retryFailed: true)
     }
 
     // MARK: - Workspace, export, dan palette
@@ -290,8 +300,7 @@ final class AppState {
             store.notify("Timeline kosong; tidak ada yang bisa diekspor.")
             return
         }
-        let size = exporter.settings.size
-        let suffix = size.width > size.height ? "" : size.width < size.height ? "-vertikal" : "-persegi"
+        let suffix = exporter.settings.fileSuffix
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.mpeg4Movie]

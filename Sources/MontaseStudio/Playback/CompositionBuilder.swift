@@ -142,7 +142,7 @@ enum CompositionBuilder {
         }
 
         var videoComposition: AVMutableVideoComposition?
-        if !pending.isEmpty, duration > .zero {
+        if duration > .zero, !pending.isEmpty || fillerID != nil {
             videoComposition = makeVideoComposition(pending: pending, duration: duration, options: options, fillerID: fillerID, sourceColorInfo: sourceColorInfo)
         }
 

@@ -46,11 +46,15 @@ final class ProxyManager {
         status(for: item) == .ready ? Self.url(for: item.id) : nil
     }
 
-    /// Menjadwalkan proxy untuk media video yang belum punya proxy.
-    func request(_ items: [MediaItem]) {
-        for item in items where item.hasVideo {
+    /// Menjadwalkan proxy untuk media video yang belum punya proxy. Media yang gagal tidak dicoba ulang
+    /// otomatis (setiap edit memanggil ini); coba lagi hanya lewat `retryFailed` dari permintaan pengguna.
+    func request(_ items: [MediaItem], retryFailed: Bool = false) {
+        for item in items where item.hasVideo && !queue.contains(where: { $0.id == item.id }) {
             switch status(for: item) {
-            case .none, .failed:
+            case .none:
+                statuses[item.id] = .queued
+                queue.append(item)
+            case .failed where retryFailed:
                 statuses[item.id] = .queued
                 queue.append(item)
             default:
