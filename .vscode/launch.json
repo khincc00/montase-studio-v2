@@ -1,0 +1,24 @@
+{
+    "configurations": [
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Montase Studio V2}",
+            "name": "Debug MontaseStudio",
+            "target": "MontaseStudio",
+            "configuration": "debug",
+            "preLaunchTask": "swift: Build Debug MontaseStudio"
+        },
+        {
+            "type": "swift",
+            "request": "launch",
+            "args": [],
+            "cwd": "${workspaceFolder:Montase Studio V2}",
+            "name": "Release MontaseStudio",
+            "target": "MontaseStudio",
+            "configuration": "release",
+            "preLaunchTask": "swift: Build Release MontaseStudio"
+        }
+    ]
+}
