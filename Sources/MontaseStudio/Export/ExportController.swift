@@ -87,6 +87,8 @@ final class ExportController {
     private(set) var isRunning = false
     private(set) var progress = 0.0
     private(set) var lastError: String?
+    /// Domain dan kode error sistem, untuk laporan yang lebih spesifik.
+    private(set) var lastErrorCode: String?
     private(set) var lastOutputURL: URL?
 
     @ObservationIgnored private var session: Transcoder.Session?
@@ -97,6 +99,7 @@ final class ExportController {
         isRunning = true
         progress = 0
         lastError = nil
+        lastErrorCode = nil
         defer {
             isRunning = false
             session = nil
@@ -126,6 +129,7 @@ final class ExportController {
             lastOutputURL = url
         } catch {
             lastError = error.localizedDescription
+            lastErrorCode = "\((error as NSError).domain) \((error as NSError).code)"
         }
     }
 

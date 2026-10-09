@@ -101,6 +101,12 @@ Hasil yang diharapkan: `KATA` sekitar 30, `SUNYI` 4 (jeda 1 dan 3 detik), `TOPIK
 - [ ] Buka `autoclip-analisis.json`. Strukturnya memakai `analisis_topik` dan `video_final_siap_posting`, dengan kunci sesuai spesifikasi.
 - [ ] Setiap video final berdurasi 30–90 detik, kecuali yang diberi tanda "di bawah 30 detik". Setiap klip mentah 5 detik sampai 2 menit.
 - [ ] Video hasil dimulai dengan hook, lalu isi, lalu penutup. Potongan selalu berhenti di akhir kalimat.
+Pemeriksaan seluruh proses termasuk ekspor (tanpa UI):
+
+    open -W "build/Montase Studio.app" --args --autoclip-run "/path/ke/video.mp4" --autoclip-out /tmp/autoclip-run.txt --autoclip-count 2
+
+Jika gagal, `/tmp/autoclip-run.txt` menyebut tahap yang gagal dan kode error sistem, misalnya `Gagal pada tahap "Menyalin audio": Cannot Open [AVFoundationErrorDomain -11829]`. Jika penyebabnya codec, pesan juga menyarankan konversi ke MP4 H.264 + AAC.
+
 - [ ] Tombol "Buka di editor" membuka hasil sebagai proyek. Klip sudah berurutan di track video dan bisa diatur ulang.
 - [ ] Jika kamu menutup panel saat proses berjalan, proses tetap berjalan. Tombol tutup baru aktif setelah selesai.
 

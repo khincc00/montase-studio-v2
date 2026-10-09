@@ -49,3 +49,41 @@ enum AutoClipSelfCheck {
         }
     }
 }
+
+extension AutoClipSelfCheck {
+    /// Menjalankan seluruh proses Auto Clip seperti dari panel, termasuk ekspor, lalu menulis tahap dan hasilnya.
+    /// Dipakai: `--autoclip-run <berkas> --autoclip-out <hasil.txt> --autoclip-count <n>`.
+    static func runFull(path: String, outputPath: String, count: Int) {
+        let folder = FileManager.default.temporaryDirectory.appendingPathComponent("autoclip-run-\(UUID().uuidString)")
+        let runner = AutoClipRunner()
+        let exporter = ExportController()
+        runner.start(
+            AutoClipRunner.Request(
+                source: URL(fileURLWithPath: path),
+                sourceItem: nil,
+                count: count,
+                orientation: .portrait,
+                localeIdentifier: "id-ID",
+                folder: folder
+            ),
+            exporter: exporter
+        )
+        Task { @MainActor in
+            var lastStage = ""
+            while runner.stage.isBusy {
+                try? await Task.sleep(for: .seconds(1))
+                if runner.stage.label != lastStage {
+                    lastStage = runner.stage.label
+                    print("TAHAP: \(lastStage)")
+                }
+            }
+            var lines = ["TAHAP AKHIR: \(runner.stage.label)", "FOLDER: \(folder.path)"]
+            if let error = exporter.lastError { lines.append("ERROR EKSPOR: \(error)") }
+            for result in runner.results {
+                lines.append(String(format: "VIDEO %02d: %.1f dtk — %@", result.id, result.duration, result.fileURL.lastPathComponent))
+            }
+            try? lines.joined(separator: "\n").write(toFile: outputPath, atomically: true, encoding: .utf8)
+            exit(runner.stage == .finished ? 0 : 1)
+        }
+    }
+}

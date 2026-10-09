@@ -11,6 +11,12 @@ struct MontaseStudioApp: App {
            let outIndex = arguments.firstIndex(of: "--autoclip-out"), arguments.indices.contains(outIndex + 1) {
             AutoClipSelfCheck.run(path: arguments[index + 1], outputPath: arguments[outIndex + 1])
         }
+        if let index = arguments.firstIndex(of: "--autoclip-run"), arguments.indices.contains(index + 1),
+           let outIndex = arguments.firstIndex(of: "--autoclip-out"), arguments.indices.contains(outIndex + 1) {
+            let countIndex = arguments.firstIndex(of: "--autoclip-count")
+            let count = countIndex.flatMap { arguments.indices.contains($0 + 1) ? Int(arguments[$0 + 1]) : nil } ?? 3
+            AutoClipSelfCheck.runFull(path: arguments[index + 1], outputPath: arguments[outIndex + 1], count: count)
+        }
     }
 
     var body: some Scene {

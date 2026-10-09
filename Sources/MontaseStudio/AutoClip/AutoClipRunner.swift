@@ -97,14 +97,15 @@ final class AutoClipRunner {
             try Task.checkCancellation()
 
             stage = .extractingAudio
-            audioURL = try await AutoClipTranscriber.extractAudio(from: request.source)
+            audioURL = try await Self.step("Menyalin audio") {
+                try await AutoClipTranscriber.extractAudio(from: request.source)
+            }
             try Task.checkCancellation()
 
             stage = .transcribing
-            let words = try await AutoClipTranscriber.transcribe(
-                audioURL: audioURL!,
-                localeIdentifier: request.localeIdentifier
-            )
+            let words = try await Self.step("Transkripsi") {
+                try await AutoClipTranscriber.transcribe(audioURL: audioURL!, localeIdentifier: request.localeIdentifier)
+            }
             transcriptWordCount = words.count
             try Task.checkCancellation()
 
@@ -138,7 +139,7 @@ final class AutoClipRunner {
                 await exporter.export(project, to: fileURL, using: settings)
                 if Task.isCancelled { throw CancellationError() }
                 if let error = exporter.lastError {
-                    throw AutoClipTranscriber.TranscribeError.failed(error)
+                    throw StepError(step: stage.label, message: error, code: exporter.lastErrorCode)
                 }
 
                 results.append(Result(
@@ -153,8 +154,44 @@ final class AutoClipRunner {
             stage = .finished
         } catch is CancellationError {
             stage = .cancelled
+        } catch let error as StepError {
+            stage = .failed(error.report)
         } catch {
-            stage = Task.isCancelled ? .cancelled : .failed((error as? LocalizedError)?.errorDescription ?? error.localizedDescription)
+            let message = (error as? LocalizedError)?.errorDescription ?? error.localizedDescription
+            let nsError = error as NSError
+            let code = nsError.domain == NSCocoaErrorDomain ? nil : "\(nsError.domain) \(nsError.code)"
+            stage = Task.isCancelled ? .cancelled : .failed(StepError(step: stage.label, message: message, code: code).report)
+        }
+    }
+
+    /// Menjalankan satu tahap dan membungkus kesalahannya dengan nama tahap dan kode sistem.
+    private static func step<T>(_ name: String, _ work: () async throws -> T) async throws -> T {
+        do {
+            return try await work()
+        } catch let error as AutoClipTranscriber.TranscribeError {
+            if case .noSpeech = error { throw error }
+            throw StepError(step: name, message: error.errorDescription ?? "", code: nil)
+        } catch is CancellationError {
+            throw CancellationError()
+        } catch {
+            let nsError = error as NSError
+            throw StepError(step: name, message: error.localizedDescription, code: "\(nsError.domain) \(nsError.code)")
+        }
+    }
+
+    /// Kesalahan dengan tahap, pesan, dan kode sistem, supaya laporan bisa ditelusuri.
+    struct StepError: Error {
+        let step: String
+        let message: String
+        let code: String?
+
+        var report: String {
+            var text = "Gagal pada tahap \"\(step)\": \(message)"
+            if let code { text += " [\(code)]" }
+            if message.localizedCaseInsensitiveContains("decode") {
+                text += ". Format atau codec video ini tidak bisa dibaca macOS. Ubah ke MP4 (H.264 + AAC) lalu impor ulang."
+            }
+            return text
         }
     }
 
