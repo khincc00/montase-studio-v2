@@ -216,24 +216,156 @@ struct CommitSlider: View {
             }
             .hoverHelp(defaultValue == nil ? title : "\(title) — klik dua kali untuk mengembalikan", edge: .bottom)
 
-            Slider(
-                value: Binding(get: { shown }, set: { draft = $0 }),
-                in: range,
-                step: step ?? (range.upperBound - range.lowerBound) / 200,
-                onEditingChanged: { editing in
-                    guard !editing, let committed = draft else { return }
+            ValueSlider(
+                value: shown,
+                range: range,
+                step: step,
+                origin: defaultValue,
+                format: format,
+                onChange: { draft = $0 },
+                onCommit: { committed in
                     onCommit(committed)
                     draft = nil
-                }
+                },
+                onReset: defaultValue.map { reset in { onCommit(reset); draft = nil } }
             )
-            .controlSize(.small)
-            .tint(Theme.accent)
         }
     }
 
     private func isChanged(_ shown: Double) -> Bool {
         guard let defaultValue else { return false }
         return abs(shown - defaultValue) > (range.upperBound - range.lowerBound) / 400
+    }
+}
+
+/// Slider kustom: area sentuh lebih besar, bagian terisi mulai dari nilai netral, dan klik langsung melompat ke posisi.
+/// Tahan Shift saat menyeret untuk penyesuaian halus. Klik dua kali mengembalikan ke nilai default.
+struct ValueSlider: View {
+    let value: Double
+    let range: ClosedRange<Double>
+    var step: Double?
+    /// Nilai netral. Bagian terisi berawal dari sini, dan sebuah tanda ditampilkan pada posisinya.
+    var origin: Double?
+    let format: (Double) -> String
+    let onChange: (Double) -> Void
+    let onCommit: (Double) -> Void
+    var onReset: (() -> Void)?
+
+    @State private var hovering = false
+    @State private var dragging = false
+    @State private var dragBase: Double?
+    /// Nilai terakhir selama seret; dipakai saat commit agar tidak membaca nilai parent yang mungkin belum diperbarui.
+    @State private var lastValue: Double?
+
+    private let knob: CGFloat = 14
+    private let track: CGFloat = 5
+    private let height: CGFloat = 22
+
+    private var span: Double { range.upperBound - range.lowerBound }
+
+    var body: some View {
+        GeometryReader { geo in
+            let usable = max(geo.size.width - knob, 1)
+            let knobCenter = knob / 2 + CGFloat(fraction(value)) * usable
+            let originX = knob / 2 + CGFloat(fraction(origin ?? range.lowerBound)) * usable
+
+            ZStack(alignment: .leading) {
+                Capsule()
+                    .fill(Theme.background)
+                    .frame(height: track)
+                    .overlay(Capsule().stroke(Theme.divider))
+
+                // Bagian terisi: dari nilai netral ke posisi knob.
+                Capsule()
+                    .fill(LinearGradient(colors: [Theme.accentDeep, Theme.accent], startPoint: .leading, endPoint: .trailing))
+                    .frame(width: max(abs(knobCenter - originX), 0), height: track)
+                    .offset(x: min(knobCenter, originX))
+
+                if origin != nil {
+                    Rectangle()
+                        .fill(Theme.textTertiary)
+                        .frame(width: 1.5, height: track + 6)
+                        .offset(x: originX - 0.75)
+                }
+
+                Circle()
+                    .fill(.white)
+                    .shadow(color: .black.opacity(0.35), radius: dragging ? 5 : 2, y: 1)
+                    .frame(width: knob, height: knob)
+                    .scaleEffect(dragging ? 1.2 : (hovering ? 1.08 : 1))
+                    .offset(x: knobCenter - knob / 2)
+                    .animation(.spring(response: 0.25, dampingFraction: 0.7), value: dragging)
+                    .animation(.easeOut(duration: 0.12), value: hovering)
+
+                if dragging {
+                    Text(format(value))
+                        .font(.caption2.monospacedDigit().weight(.semibold))
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(Theme.surfaceActive, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                        .foregroundStyle(Theme.textPrimary)
+                        .fixedSize()
+                        .offset(x: knobCenter - 20, y: -height)
+                        .allowsHitTesting(false)
+                        .transition(.opacity)
+                }
+            }
+            .frame(width: geo.size.width, height: height, alignment: .leading)
+            .contentShape(Rectangle())
+            .gesture(
+                DragGesture(minimumDistance: 0)
+                    .onChanged { drag in
+                        if dragBase == nil {
+                            dragBase = value
+                            dragging = true
+                        }
+                        let base = dragBase ?? value
+                        // Klik tanpa geser langsung melompat ke posisi kursor; seret mengikuti jarak geser.
+                        let fine = NSEvent.modifierFlags.contains(.shift) ? 0.2 : 1
+                        let target: Double
+                        if abs(drag.translation.width) < 2 {
+                            target = valueAt(x: drag.location.x, usable: usable)
+                        } else {
+                            target = base + Double(drag.translation.width / usable) * span * fine
+                        }
+                        lastValue = snapped(target)
+                        onChange(snapped(target))
+                    }
+                    .onEnded { _ in
+                        onCommit(lastValue ?? value)
+                        lastValue = nil
+                        dragBase = nil
+                        dragging = false
+                    }
+            )
+            .onHover { hovering = $0 }
+            .onTapGesture(count: 2) { onReset?() }
+        }
+        .frame(height: height)
+        .accessibilityElement()
+        .accessibilityValue(format(value))
+        .accessibilityAdjustableAction { direction in
+            let delta = (step ?? span / 100) * (direction == .increment ? 1 : -1)
+            onCommit(snapped(value + delta))
+        }
+    }
+
+    private func fraction(_ v: Double) -> Double {
+        guard span > 0 else { return 0 }
+        return min(max((v - range.lowerBound) / span, 0), 1)
+    }
+
+    private func valueAt(x: CGFloat, usable: CGFloat) -> Double {
+        let f = min(max(Double((x - knob / 2) / usable), 0), 1)
+        return range.lowerBound + f * span
+    }
+
+    private func snapped(_ v: Double) -> Double {
+        let clamped = min(max(v, range.lowerBound), range.upperBound)
+        let increment = step ?? span / 200
+        guard increment > 0 else { return clamped }
+        let stepped = ((clamped - range.lowerBound) / increment).rounded() * increment + range.lowerBound
+        return min(max(stepped, range.lowerBound), range.upperBound)
     }
 }
 

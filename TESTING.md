@@ -76,6 +76,7 @@ Dokumen ini untuk menguji Montase Studio langsung di Mac, lalu mencatat hasilnya
 - [ ] Timeline kosong menampilkan petunjuk. Setelah ada klip, petunjuk hilang.
 - [ ] ⌘K membuka palet perintah. Panah atas-bawah memilih, Enter menjalankan, Esc menutup.
 - [ ] Tombol Home kembali ke awal, Space memutar, ← dan → berpindah per frame.
+- [ ] Slider (Inspector, Color, Audio): klik di jalur langsung melompat ke posisi itu. Seret mengikuti kursor. Tahan Shift saat menyeret untuk penyesuaian halus. Nilai ditampilkan saat diseret. Klik dua kali mengembalikan ke default. Bagian terisi berawal dari tanda netral.
 - [ ] Workspace Export: kartu pengaturan memenuhi lebar kolom, pratinjau rasio berubah saat orientasi diganti, dan tombol Mulai Ekspor terlihat jelas.
 
 ## Catatan yang perlu diketahui saat meninjau
