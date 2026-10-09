@@ -8,10 +8,10 @@ struct TimelineView: View {
     @State private var drag: ClipDrag?
 
     private enum Metrics {
-        static let rulerHeight: CGFloat = 28
-        static let headerWidth: CGFloat = 116
-        static let videoRowHeight: CGFloat = 56
-        static let audioRowHeight: CGFloat = 44
+        static let rulerHeight: CGFloat = 30
+        static let headerWidth: CGFloat = 124
+        static let videoRowHeight: CGFloat = 60
+        static let audioRowHeight: CGFloat = 50
         static let clipInset: CGFloat = 4
         static let snapDistance: CGFloat = 8
         static let handleWidth: CGFloat = 8
@@ -47,11 +47,11 @@ struct TimelineView: View {
     var body: some View {
         VStack(spacing: 0) {
             toolbar
-            Divider()
+            Hairline(vertical: false)
             ScrollView(.vertical) {
                 HStack(alignment: .top, spacing: 0) {
                     headerColumn
-                    Divider()
+                    Hairline(vertical: true)
                     ScrollView(.horizontal) {
                         canvas
                     }
@@ -59,61 +59,86 @@ struct TimelineView: View {
             }
         }
         .background(Theme.panel)
+        .overlay {
+            // Petunjuk saat timeline masih kosong; tidak menghalangi klik atau seret.
+            if project.clipCount == 0 {
+                Label("Seret media dari Library ke sini, atau tekan ⌘I", systemImage: "arrow.down.doc")
+                    .font(.callout)
+                    .foregroundStyle(Theme.textSecondary)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 9)
+                    .background(Theme.raised, in: Capsule())
+                    .overlay(Capsule().stroke(Theme.divider))
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
+        }
     }
 
     // MARK: - Toolbar
 
+    /// Bilah alat: aksi edit di kiri (bisa digulir saat layar sempit), kontrol zoom tetap di kanan.
     private var toolbar: some View {
-        HStack(spacing: 10) {
-            toolButton("arrow.uturn.backward", "Urungkan (⌘Z)", disabled: !store.canUndo) { store.undo() }
-            toolButton("arrow.uturn.forward", "Ulangi (⇧⌘Z)", disabled: !store.canRedo) { store.redo() }
-            Divider().frame(height: 16)
-            toolButton("scissors", "Belah pada playhead (S)") { store.splitAtPlayhead() }
-            toolButton("trash", "Hapus clip (⌫)") { store.deleteSelected(ripple: false) }
-            toolButton("rectangle.compress.vertical", "Hapus & rapatkan (⇧⌫)") {
-                store.deleteSelected(ripple: true)
+        HStack(spacing: 6) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 2) {
+                    IconButton(systemImage: "arrow.uturn.backward", help: "Urungkan", shortcut: "⌘Z",
+                               isDisabled: !store.canUndo) { store.undo() }
+                    IconButton(systemImage: "arrow.uturn.forward", help: "Ulangi", shortcut: "⇧⌘Z",
+                               isDisabled: !store.canRedo) { store.redo() }
+                    toolDivider
+                    IconButton(systemImage: "scissors", help: "Belah pada playhead", shortcut: "S") { store.splitAtPlayhead() }
+                    IconButton(systemImage: "trash", help: "Hapus clip", shortcut: "⌫") { store.deleteSelected(ripple: false) }
+                    IconButton(systemImage: "rectangle.compress.vertical", help: "Hapus dan rapatkan", shortcut: "⇧⌫") {
+                        store.deleteSelected(ripple: true)
+                    }
+                    IconButton(systemImage: "plus.square.on.square", help: "Duplikat clip", shortcut: "⌘D") { store.duplicateSelected() }
+                    toolDivider
+                    IconButton(systemImage: "link", help: "Tautkan clip sejajar") { store.linkSelected() }
+                    IconButton(systemImage: "link.badge.plus", help: "Pisahkan audio dari video") { store.detachAudioSelected() }
+                    IconButton(systemImage: "link.badge.minus", help: "Lepas tautan") { store.unlinkSelected() }
+                    toolDivider
+                    IconButton(systemImage: "textformat", help: "Tambah teks di playhead") { store.addTitle() }
+                    IconButton(systemImage: "flag", help: "Tambah marker di playhead", shortcut: "M") { store.addMarker() }
+                    IconButton(
+                        systemImage: "magnet",
+                        help: store.snappingEnabled ? "Snap aktif, klik untuk mematikan" : "Snap mati, klik untuk menyalakan",
+                        isOn: store.snappingEnabled
+                    ) { store.snappingEnabled.toggle() }
+                }
+                .padding(.horizontal, 2)
             }
-            toolButton("plus.square.on.square", "Duplikat clip (⌘D)") { store.duplicateSelected() }
-            Divider().frame(height: 16)
-            toolButton("link", "Tautkan clip sejajar") { store.linkSelected() }
-            toolButton("link.badge.plus", "Pisahkan audio dari video") { store.detachAudioSelected() }
-            toolButton("link.badge.minus", "Lepas tautan") { store.unlinkSelected() }
-            toolButton("textformat", "Tambah teks di playhead") { store.addTitle() }
-            toolButton("flag", "Tambah marker di playhead (M)") { store.addMarker() }
-            Divider().frame(height: 16)
-            toolButton("magnet", store.snappingEnabled ? "Snap aktif" : "Snap nonaktif") {
-                store.snappingEnabled.toggle()
+
+            HStack(spacing: 4) {
+                IconButton(systemImage: "minus.magnifyingglass", help: "Perkecil timeline", size: 24) { zoom(by: -20) }
+                Slider(value: Binding(
+                    get: { store.pixelsPerSecond },
+                    set: { store.pixelsPerSecond = $0 }
+                ), in: 10...200)
+                .controlSize(.small)
+                .tint(Theme.accent)
+                .frame(width: 110)
+                .hoverHelp("Zoom timeline")
+                IconButton(systemImage: "plus.magnifyingglass", help: "Perbesar timeline", size: 24) { zoom(by: 20) }
             }
-            .foregroundStyle(store.snappingEnabled ? Theme.accent : Theme.textSecondary)
-
-            Spacer()
-
-            Image(systemName: "minus.magnifyingglass")
-                .foregroundStyle(Theme.textSecondary)
-            Slider(value: Binding(
-                get: { store.pixelsPerSecond },
-                set: { store.pixelsPerSecond = $0 }
-            ), in: 10...200)
-            .frame(width: 140)
-            Image(systemName: "plus.magnifyingglass")
-                .foregroundStyle(Theme.textSecondary)
+            .fixedSize()
         }
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 10)
         .padding(.vertical, 6)
+        .background(Theme.panel)
     }
 
-    private func toolButton(
-        _ systemImage: String,
-        _ help: String,
-        disabled: Bool = false,
-        action: @escaping () -> Void
-    ) -> some View {
-        Button(action: action) {
-            Image(systemName: systemImage)
+    private var toolDivider: some View {
+        Rectangle()
+            .fill(Theme.divider)
+            .frame(width: 1, height: 16)
+            .padding(.horizontal, 4)
+    }
+
+    private func zoom(by delta: Double) {
+        withAnimation(.easeOut(duration: 0.15)) {
+            store.pixelsPerSecond = min(max(store.pixelsPerSecond + delta, 10), 200)
         }
-        .buttonStyle(.borderless)
-        .help(help)
-        .disabled(disabled)
     }
 
     // MARK: - Header dan canvas
@@ -122,9 +147,9 @@ struct TimelineView: View {
         VStack(spacing: 0) {
             HStack(spacing: 6) {
                 Button { store.addTrack(kind: .video) } label: { Label("Video", systemImage: "plus") }
-                    .help("Tambah track video di atas")
+                    .hoverHelp("Tambah track video di atas")
                 Button { store.addTrack(kind: .audio) } label: { Label("Audio", systemImage: "plus") }
-                    .help("Tambah track audio di bawah")
+                    .hoverHelp("Tambah track audio di bawah")
             }
             .buttonStyle(.borderless)
             .font(.caption2)
@@ -214,7 +239,7 @@ struct TimelineView: View {
             .foregroundStyle(Theme.warning)
             .frame(width: 12, height: 12)
             .offset(x: CGFloat(marker.time.seconds) * pps - 6, y: Metrics.rulerHeight - 13)
-            .help(marker.name)
+            .hoverHelp(marker.name)
             .onTapGesture { app.playback.seek(to: marker.time) }
             .contextMenu {
                 Button("Ubah Nama…") {
@@ -452,31 +477,29 @@ private struct TrackHeaderView: View {
     let app: AppState
     let track: Track
 
+    private var tint: Color { track.kind == .video ? Theme.videoClipTop : Theme.audioClipTop }
+
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 6) {
+            RoundedRectangle(cornerRadius: 2)
+                .fill(tint)
+                .frame(width: 3)
+                .padding(.vertical, 8)
             Image(systemName: track.kind == .video ? "film" : "waveform")
+                .font(.caption)
                 .foregroundStyle(Theme.textSecondary)
             Text(track.name)
-                .font(.caption.weight(.semibold))
+                .font(.caption.weight(.bold))
             Spacer(minLength: 0)
-            Button { app.store.toggleSolo(trackID: track.id) } label: {
-                Text("S")
-                    .font(.caption2.weight(.bold))
-                    .frame(width: 16, height: 16)
-                    .background(track.isSolo ? Theme.accent : .clear, in: RoundedRectangle(cornerRadius: 3))
+            TrackToggle(title: "S", isOn: track.isSolo, onColor: Theme.accent, help: "Solo track") {
+                app.store.toggleSolo(trackID: track.id)
             }
-            .buttonStyle(.borderless)
-            .foregroundStyle(track.isSolo ? Theme.background : Theme.textSecondary)
-            .help("Solo track")
-
-            Button { app.store.toggleMute(trackID: track.id) } label: {
-                Image(systemName: track.isMuted ? "speaker.slash.fill" : "speaker.wave.2")
+            TrackToggle(title: "M", isOn: track.isMuted, onColor: Theme.warning, help: "Bisukan track") {
+                app.store.toggleMute(trackID: track.id)
             }
-            .buttonStyle(.borderless)
-            .foregroundStyle(track.isMuted ? Theme.warning : Theme.textSecondary)
-            .help(track.isMuted ? "Aktifkan track" : "Bisukan track")
         }
-        .padding(.horizontal, 8)
+        .padding(.leading, 4)
+        .padding(.trailing, 8)
         .frame(maxHeight: .infinity)
         .background(Theme.panel)
         .contextMenu {
@@ -489,25 +512,62 @@ private struct TrackHeaderView: View {
     }
 }
 
+/// Tombol kecil S/M di header track. Saat aktif, warnanya berubah agar status terlihat sekilas.
+private struct TrackToggle: View {
+    let title: String
+    let isOn: Bool
+    let onColor: Color
+    let help: String
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            Text(title)
+                .font(.caption2.weight(.heavy))
+                .frame(width: 18, height: 18)
+                .foregroundStyle(isOn ? Theme.background : Theme.textSecondary)
+                .background(isOn ? onColor : Theme.surfaceActive, in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+        }
+        .buttonStyle(PressableStyle())
+        .hoverHelp(help)
+    }
+}
+
 private struct TimelineClipView: View {
     let clip: Clip
     let kind: TrackKind
     let isSelected: Bool
     let peaks: [Float]?
 
-    private var fill: Color {
-        if clip.isTitle { return Color(hex: 0x6B4FA0) }
-        return kind == .video ? Theme.videoClip : Theme.audioClip
+    @State private var hovering = false
+
+    private var colors: (top: Color, bottom: Color) {
+        if clip.isTitle { return (Theme.titleClipTop, Theme.titleClip) }
+        return kind == .video ? (Theme.videoClipTop, Theme.videoClip) : (Theme.audioClipTop, Theme.audioClip)
     }
 
     var body: some View {
-        RoundedRectangle(cornerRadius: 6)
-            .fill(fill)
+        let shape = RoundedRectangle(cornerRadius: 7, style: .continuous)
+        let colors = colors
+        shape
+            .fill(LinearGradient(colors: [colors.top, colors.bottom], startPoint: .top, endPoint: .bottom))
             .overlay {
                 if kind == .audio, let peaks {
                     WaveformShape(peaks: peaks, sourceStart: clip.sourceStart.seconds, sourceDuration: clip.sourceDuration.seconds)
                         .padding(.vertical, 6)
-                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .clipShape(shape)
+                }
+            }
+            .overlay {
+                // Sorotan tipis di atas, memberi kesan permukaan yang timbul.
+                shape.stroke(
+                    LinearGradient(colors: [.white.opacity(0.35), .clear], startPoint: .top, endPoint: .center),
+                    lineWidth: 1
+                )
+            }
+            .overlay {
+                if hovering {
+                    shape.fill(Color.white.opacity(0.08))
                 }
             }
             .overlay(alignment: .leading) {
@@ -521,19 +581,24 @@ private struct TimelineClipView: View {
                     Text(clip.name).lineLimit(1)
                     if abs(clip.speed - 1) > 0.001 {
                         Text(String(format: "%.2g×", clip.speed))
-                            .font(.caption2.monospacedDigit())
-                            .padding(.horizontal, 3)
-                            .background(.black.opacity(0.35), in: RoundedRectangle(cornerRadius: 3))
+                            .font(.caption2.monospacedDigit().weight(.semibold))
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(.black.opacity(0.3), in: RoundedRectangle(cornerRadius: 4))
                     }
                 }
-                .font(.caption)
-                .foregroundStyle(Theme.textPrimary)
-                .padding(.leading, 8)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(.white)
+                .shadow(color: .black.opacity(0.35), radius: 1, y: 1)
+                .padding(.leading, 9)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: 6)
-                    .stroke(isSelected ? Theme.accent : .clear, lineWidth: 2)
+                shape.stroke(isSelected ? Theme.accent : Color.white.opacity(0.12), lineWidth: isSelected ? 2 : 1)
             }
+            .shadow(color: isSelected ? Theme.accent.opacity(0.45) : .clear, radius: 6)
+            .onHover { hovering = $0 }
+            .animation(.easeOut(duration: 0.12), value: hovering)
+            .animation(.easeOut(duration: 0.15), value: isSelected)
     }
 }
 

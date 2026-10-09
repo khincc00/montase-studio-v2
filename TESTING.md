@@ -63,7 +63,23 @@ Dokumen ini untuk menguji Montase Studio langsung di Mac, lalu mencatat hasilnya
 - [ ] Impor media, lalu pindahkan atau ganti nama filenya di Finder.
 - [ ] Media ditandai "File hilang". Klik kanan, pilih Relink, lalu arahkan ke file baru. Clip kembali normal.
 
+## 7. Antarmuka dan responsivitas
+
+- [ ] Arahkan kursor ke ikon mana pun (misal tombol undo, scissors, flag). Setelah sekitar 0,4 detik muncul keterangan fungsi dengan pintasan, bukan tooltip bawaan macOS.
+- [ ] Keterangan muncul di atas elemen, dan hilang saat kursor pergi. Tidak tertinggal di layar.
+- [ ] Tombol ikon berubah latar saat disorot, dan mengecil sedikit saat ditekan.
+- [ ] Tab Edit / Color / Audio / Export berpindah dengan animasi pada latar terpilih. ⌘1–⌘4 juga bekerja.
+- [ ] Seret garis kecil di atas timeline untuk mengubah tinggi timeline. Tinggi tetap saat pindah workspace.
+- [ ] Ubah ukuran jendela ke lebar minimum (sekitar 1100 px). Panel menyusut tanpa terpotong, dan toolbar timeline bisa digulir horizontal.
+- [ ] Di Inspector, klik judul bagian untuk melipat atau membukanya. Klik dua kali label slider untuk mengembalikan nilai default (misal Volume kembali 100%).
+- [ ] Di Library, arahkan kursor ke thumbnail. Ada sorotan dan bingkai aksen. Seret file ke area Library untuk mengimpor (bingkai putus-putus muncul saat file di atas panel).
+- [ ] Timeline kosong menampilkan petunjuk. Setelah ada klip, petunjuk hilang.
+- [ ] ⌘K membuka palet perintah. Panah atas-bawah memilih, Enter menjalankan, Esc menutup.
+- [ ] Tombol Home kembali ke awal, Space memutar, ← dan → berpindah per frame.
+- [ ] Workspace Export: kartu pengaturan memenuhi lebar kolom, pratinjau rasio berubah saat orientasi diganti, dan tombol Mulai Ekspor terlihat jelas.
+
 ## Catatan yang perlu diketahui saat meninjau
 
-- Gambar render UI di `TestReports/frames-*/ui-*.png` menampilkan ikon SF Symbol sebagai placeholder. Itu keterbatasan render offscreen, bukan bug aplikasi.
+- `TestReports/frames-*/window-*.png` adalah render jendela sungguhan (isi timeline, Library, dan Inspector ikut tergambar). Ikon SF Symbol di sana bisa tampil sebagai kotak placeholder. Itu keterbatasan render offscreen, bukan bug aplikasi.
+- `ui-*.png` adalah render cepat tanpa jendela; isi di dalam ScrollView tidak ikut tergambar di sana.
 - Test integrasi dilewati jika ffmpeg tidak ditemukan. Laporan akan menampilkan jumlah test yang dilewati.

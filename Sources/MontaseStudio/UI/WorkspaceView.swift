@@ -4,11 +4,12 @@ import SwiftUI
 struct WorkspaceView: View {
     @Bindable var app: AppState
     @FocusState private var focused: Bool
+    /// Tinggi timeline bisa diatur dengan menyeret garis pemisah.
+    @State private var timelineHeight: CGFloat = 300
 
     var body: some View {
         VStack(spacing: 0) {
             TopBar(app: app)
-            Divider()
             content
             StatusBar(app: app)
         }
@@ -33,6 +34,10 @@ struct WorkspaceView: View {
         }
         .onKeyPress(.delete) {
             app.store.deleteSelected(ripple: false)
+            return .handled
+        }
+        .onKeyPress(.home) {
+            app.playback.seek(to: .zero)
             return .handled
         }
         .onKeyPress(.leftArrow) {
@@ -61,14 +66,16 @@ struct WorkspaceView: View {
         switch app.workspace {
         case .export:
             ExportPanel(app: app)
+                .transition(.opacity)
         case .edit, .color, .audio:
             VStack(spacing: 0) {
                 workspaceTop
                     .frame(maxHeight: .infinity)
-                Divider()
+                VerticalResizeHandle(height: $timelineHeight, range: 180...720)
                 TimelineView(app: app)
-                    .frame(height: 300)
+                    .frame(height: timelineHeight)
             }
+            .transition(.opacity)
         }
     }
 
@@ -78,29 +85,29 @@ struct WorkspaceView: View {
         case .edit:
             HStack(spacing: 0) {
                 LibraryView(app: app)
-                    .frame(width: 260)
-                Divider()
+                    .frame(minWidth: 220, idealWidth: 260, maxWidth: 320)
+                Hairline(vertical: true)
                 ViewerView(app: app)
-                    .frame(maxWidth: .infinity)
-                Divider()
+                    .frame(minWidth: 360, maxWidth: .infinity)
+                Hairline(vertical: true)
                 InspectorView(app: app)
-                    .frame(width: 280)
+                    .frame(minWidth: 240, idealWidth: 280, maxWidth: 340)
             }
         case .color:
             HStack(spacing: 0) {
                 ViewerView(app: app)
-                    .frame(maxWidth: .infinity)
-                Divider()
+                    .frame(minWidth: 360, maxWidth: .infinity)
+                Hairline(vertical: true)
                 ColorPanel(app: app)
-                    .frame(width: 340)
+                    .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
             }
         case .audio:
             HStack(spacing: 0) {
                 ViewerView(app: app)
-                    .frame(maxWidth: .infinity)
-                Divider()
+                    .frame(minWidth: 360, maxWidth: .infinity)
+                Hairline(vertical: true)
                 AudioPanel(app: app)
-                    .frame(width: 340)
+                    .frame(minWidth: 280, idealWidth: 320, maxWidth: 360)
             }
         case .export:
             EmptyView()
@@ -108,80 +115,168 @@ struct WorkspaceView: View {
     }
 }
 
+/// Garis tipis pemisah panel.
+struct Hairline: View {
+    var vertical: Bool
+
+    var body: some View {
+        Rectangle()
+            .fill(Theme.divider)
+            .frame(width: vertical ? 1 : nil, height: vertical ? nil : 1)
+    }
+}
+
+// MARK: - Bilah atas
+
 private struct TopBar: View {
     @Bindable var app: AppState
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "film.stack")
-                .foregroundStyle(Theme.accent)
-            Text("Montase Studio")
-                .font(.headline)
-            Text(app.store.project.name)
-                .foregroundStyle(Theme.textSecondary)
-
-            Spacer()
-
-            Picker("Workspace", selection: $app.workspace) {
-                ForEach(Workspace.allCases) { Text($0.title).tag($0) }
+        HStack(spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: "film.stack.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(Theme.background)
+                    .frame(width: 26, height: 26)
+                    .background(
+                        LinearGradient(colors: [Theme.accent, Theme.videoClipTop], startPoint: .topLeading, endPoint: .bottomTrailing),
+                        in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    )
+                    .hoverHelp("Montase Studio")
+                VStack(alignment: .leading, spacing: 0) {
+                    Text("Montase Studio")
+                        .font(.caption.weight(.bold))
+                    Text(app.store.project.name)
+                        .font(.caption2)
+                        .foregroundStyle(Theme.textSecondary)
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: 160, alignment: .leading)
             }
-            .pickerStyle(.segmented)
-            .labelsHidden()
-            .frame(width: 320)
 
-            Spacer()
+            Spacer(minLength: 12)
 
-            Button { app.store.undo() } label: { Image(systemName: "arrow.uturn.backward") }
-                .help("Urungkan (⌘Z)")
-                .disabled(!app.store.canUndo)
-            Button { app.store.redo() } label: { Image(systemName: "arrow.uturn.forward") }
-                .help("Ulangi (⇧⌘Z)")
-                .disabled(!app.store.canRedo)
-            Button { app.isPaletteOpen = true } label: { Image(systemName: "command") }
-                .help("Command palette (⌘K)")
-            Button { app.show(.export) } label: { Label("Ekspor", systemImage: "square.and.arrow.up") }
-                .buttonStyle(.borderedProminent)
-                .tint(Theme.accent)
-                .disabled(app.store.project.duration <= .zero)
+            WorkspaceTabs(selection: $app.workspace)
+
+            Spacer(minLength: 12)
+
+            HStack(spacing: 4) {
+                IconButton(systemImage: "arrow.uturn.backward", help: "Urungkan", shortcut: "⌘Z",
+                           isDisabled: !app.store.canUndo) { app.store.undo() }
+                IconButton(systemImage: "arrow.uturn.forward", help: "Ulangi", shortcut: "⇧⌘Z",
+                           isDisabled: !app.store.canRedo) { app.store.redo() }
+                IconButton(systemImage: "command", help: "Command palette", shortcut: "⌘K") {
+                    app.isPaletteOpen = true
+                }
+            }
+
+            Button { app.show(.export) } label: {
+                Label("Ekspor", systemImage: "square.and.arrow.up")
+            }
+            .buttonStyle(.prominentPill)
+            .disabled(app.store.project.duration <= .zero)
+            .hoverHelp("Buka workspace ekspor", shortcut: "⌘E")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 9)
         .background(Theme.panel)
+        .overlay(alignment: .bottom) { Hairline(vertical: false) }
     }
 }
+
+/// Pemilih workspace berbentuk kapsul. Latar terpilih bergeser dengan animasi.
+private struct WorkspaceTabs: View {
+    @Binding var selection: Workspace
+    @Namespace private var indicator
+
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(Array(Workspace.allCases.enumerated()), id: \.element.id) { index, tab in
+                let selected = selection == tab
+                Button {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        selection = tab
+                    }
+                } label: {
+                    Label(tab.title, systemImage: tab.symbol)
+                        .font(.callout.weight(.medium))
+                        .labelStyle(.titleAndIcon)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 5)
+                        .foregroundStyle(selected ? Theme.background : Theme.textSecondary)
+                        .background {
+                            if selected {
+                                Capsule(style: .continuous)
+                                    .fill(Theme.accent)
+                                    .matchedGeometryEffect(id: "indicator", in: indicator)
+                            }
+                        }
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(PressableStyle())
+                .hoverHelp("Workspace \(tab.title)", shortcut: "⌘\(index + 1)")
+            }
+        }
+        .padding(3)
+        .background(Theme.raised, in: Capsule(style: .continuous))
+        .overlay(Capsule(style: .continuous).stroke(Theme.divider))
+    }
+}
+
+// MARK: - Bilah status
 
 private struct StatusBar: View {
     let app: AppState
 
     private var store: EditorStore { app.store }
 
+    private var hint: String {
+        switch app.workspace {
+        case .edit: return "Space putar · S belah · ⌫ hapus · ⌘D duplikat · seret tepi klip untuk memotong"
+        case .color: return "Pilih klip video di timeline untuk mengatur warnanya · Sebelum/Sesudah untuk membandingkan"
+        case .audio: return "Geser fader untuk mengatur level · klik dua kali nama pengaturan untuk mengembalikannya"
+        case .export: return "Pilih resolusi, orientasi, dan kualitas, lalu tekan Mulai Ekspor"
+        }
+    }
+
     var body: some View {
         HStack(spacing: 14) {
-            Label(
-                store.hasUnsavedChanges ? "Belum disimpan" : "Tersimpan",
-                systemImage: store.hasUnsavedChanges ? "circle.fill" : "checkmark.circle"
-            )
-            Text("Klip \(store.project.clipCount)")
-            Text("Durasi \(store.project.duration.clockString)")
+            HStack(spacing: 6) {
+                Circle()
+                    .fill(store.hasUnsavedChanges ? Theme.warning : Theme.accent)
+                    .frame(width: 7, height: 7)
+                Text(store.hasUnsavedChanges ? "Belum disimpan" : "Tersimpan")
+            }
+            Text("\(store.project.clipCount) klip")
+            Text(store.project.duration.clockString).monospacedDigit()
 
             if let notice = store.notice {
                 Text(notice)
                     .foregroundStyle(Theme.warning)
                     .lineLimit(1)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
             }
 
-            Spacer()
+            Spacer(minLength: 12)
 
             if app.exporter.isRunning {
                 ProgressView(value: app.exporter.progress)
+                    .tint(Theme.accent)
                     .frame(width: 120)
                 Text("Ekspor \(Int(app.exporter.progress * 100))%")
+                    .monospacedDigit()
+            } else {
+                Text(hint)
+                    .foregroundStyle(Theme.textTertiary)
+                    .lineLimit(1)
             }
         }
         .font(.caption)
         .foregroundStyle(Theme.textSecondary)
-        .padding(.horizontal, 12)
+        .padding(.horizontal, 14)
         .padding(.vertical, 6)
         .background(Theme.panel)
+        .overlay(alignment: .top) { Hairline(vertical: false) }
+        .animation(.easeOut(duration: 0.2), value: store.notice)
     }
 }

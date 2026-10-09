@@ -49,4 +49,36 @@ final class UIRenderTests: XCTestCase {
             try render(app, name: workspace.rawValue)
         }
     }
+
+    /// Merender jendela SwiftUI sungguhan (NSHostingView). Berbeda dengan ImageRenderer, isi ScrollView ikut tergambar,
+    /// sehingga timeline, Library, dan Inspector terlihat di gambar.
+    func testRenderWindowSnapshots() throws {
+        let app = sampleApp()
+        for workspace in Workspace.allCases {
+            app.show(workspace)
+            let hosting = NSHostingView(rootView: WorkspaceView(app: app).preferredColorScheme(.dark))
+            let window = NSWindow(
+                contentRect: NSRect(x: 0, y: 0, width: 1400, height: 860),
+                styleMask: [.titled, .closable],
+                backing: .buffered,
+                defer: false
+            )
+            // Jendela dikelola oleh test, bukan oleh AppKit, agar tidak dilepas dua kali saat ditutup.
+            window.isReleasedWhenClosed = false
+            window.contentView = hosting
+            window.orderBack(nil)
+            hosting.layoutSubtreeIfNeeded()
+            // Beri waktu untuk layout ScrollView dan lazy grid sebelum diambil gambarnya.
+            RunLoop.current.run(until: Date().addingTimeInterval(0.6))
+            hosting.layoutSubtreeIfNeeded()
+
+            let rep = try XCTUnwrap(hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds))
+            hosting.cacheDisplay(in: hosting.bounds, to: rep)
+            let url = FileManager.default.temporaryDirectory.appendingPathComponent("MontaseIT-frames/window-\(workspace.rawValue).png")
+            try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try XCTUnwrap(rep.representation(using: .png, properties: [:])).write(to: url)
+            window.contentView = nil
+            window.close()
+        }
+    }
 }

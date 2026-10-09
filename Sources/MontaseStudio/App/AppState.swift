@@ -18,6 +18,14 @@ enum Workspace: String, CaseIterable, Identifiable {
         case .export: return "Export"
         }
     }
+    var symbol: String {
+        switch self {
+        case .edit: return "scissors"
+        case .color: return "paintpalette"
+        case .audio: return "waveform"
+        case .export: return "square.and.arrow.up"
+        }
+    }
 }
 
 /// Aksi yang muncul di command palette.

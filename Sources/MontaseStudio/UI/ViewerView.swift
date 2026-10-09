@@ -8,23 +8,38 @@ struct ViewerView: View {
     var body: some View {
         VStack(spacing: 0) {
             ZStack {
-                Color.black
-                PlayerSurface(player: app.playback.player)
-                if app.store.project.clipCount == 0 {
-                    Text("Tambahkan media ke timeline untuk melihat preview")
-                        .foregroundStyle(Theme.textSecondary)
+                Theme.background
+                // Layar video dengan bingkai tipis agar batas kanvas jelas di atas latar gelap.
+                ZStack {
+                    Color.black
+                    PlayerSurface(player: app.playback.player)
+                    if app.store.project.clipCount == 0 {
+                        EmptyStateView(
+                            systemImage: "play.rectangle",
+                            title: "Belum ada gambar",
+                            message: "Tambahkan media ke timeline untuk melihat preview di sini.",
+                            actionTitle: "Impor Media…",
+                            action: { app.presentImportPanel() }
+                        )
+                    }
+                    if app.playback.showOriginal {
+                        Text("SEBELUM")
+                            .font(.caption2.weight(.bold))
+                            .tracking(0.8)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Theme.warning, in: Capsule())
+                            .foregroundStyle(.black)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                            .padding(12)
+                            .transition(.scale.combined(with: .opacity))
+                    }
                 }
-                if app.playback.showOriginal {
-                    Text("SEBELUM")
-                        .font(.caption.weight(.bold))
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 3)
-                        .background(Theme.warning, in: Capsule())
-                        .foregroundStyle(.black)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                        .padding(10)
-                }
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(Theme.divider))
+                .padding(14)
             }
+            .animation(.easeOut(duration: 0.2), value: app.playback.showOriginal)
             TransportBar(app: app)
         }
     }
@@ -61,39 +76,71 @@ private struct TransportBar: View {
 
     var body: some View {
         let project = app.store.project
-        HStack(spacing: 12) {
+        let frameRate = project.sequence.frameRate
+        HStack(spacing: 10) {
+            IconButton(systemImage: "backward.end.fill", help: "Ke awal", shortcut: "Home") {
+                app.playback.seek(to: .zero)
+            }
+            IconButton(systemImage: "backward.frame.fill", help: "Frame sebelumnya", shortcut: "←") {
+                app.playback.step(frames: -1)
+            }
+
             Button { app.playback.togglePlayback() } label: {
                 Image(systemName: app.playback.isPlaying ? "pause.fill" : "play.fill")
-                    .frame(width: 18)
+                    .font(.system(size: 14, weight: .bold))
+                    .foregroundStyle(Theme.background)
+                    .frame(width: 36, height: 36)
+                    .background(Theme.accent, in: Circle())
+                    .contentTransition(.symbolEffect(.replace))
             }
-            .buttonStyle(.borderless)
-            .help("Putar / Jeda (Space)")
+            .buttonStyle(PressableStyle())
+            .hoverHelp(app.playback.isPlaying ? "Jeda" : "Putar", shortcut: "Space")
 
-            Text("\(app.store.playhead.timecode(frameRate: project.sequence.frameRate)) / \(project.duration.timecode(frameRate: project.sequence.frameRate))")
-                .font(.callout.monospacedDigit())
+            IconButton(systemImage: "forward.frame.fill", help: "Frame berikutnya", shortcut: "→") {
+                app.playback.step(frames: 1)
+            }
 
-            Spacer()
+            // Kapsul waktu: posisi playhead dan durasi total.
+            HStack(spacing: 6) {
+                Text(app.store.playhead.timecode(frameRate: frameRate))
+                    .foregroundStyle(Theme.textPrimary)
+                Text("/")
+                    .foregroundStyle(Theme.textTertiary)
+                Text(project.duration.timecode(frameRate: frameRate))
+                    .foregroundStyle(Theme.textSecondary)
+            }
+            .font(.callout.monospacedDigit().weight(.medium))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 5)
+            .background(Theme.raised, in: Capsule())
+            .overlay(Capsule().stroke(Theme.divider))
+
+            Spacer(minLength: 8)
+
+            if app.playback.skippedClipCount > 0 {
+                Label("\(app.playback.skippedClipCount) dilewati", systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(Theme.warning)
+                    .hoverHelp("Klip dengan file hilang tidak ditampilkan. Gunakan Relink di Library.")
+            }
+
+            Text("\(project.sequence.width)×\(project.sequence.height) · \(frameRate) fps")
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(Theme.textTertiary)
+                .hoverHelp("Ukuran dan frame rate sequence")
 
             Picker("Kualitas", selection: quality) {
                 ForEach(PreviewQuality.allCases) { Text($0.title).tag($0) }
             }
             .pickerStyle(.segmented)
             .labelsHidden()
+            .controlSize(.small)
             .frame(width: 130)
-            .help("Kualitas preview")
-
-            if app.playback.skippedClipCount > 0 {
-                Label("\(app.playback.skippedClipCount) dilewati", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(Theme.warning)
-            }
-
-            Text("\(project.sequence.width)×\(project.sequence.height) · \(project.sequence.frameRate) fps")
-                .font(.caption)
-                .foregroundStyle(Theme.textSecondary)
+            .hoverHelp("Kualitas preview: makin kecil makin ringan saat diputar")
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
         .background(Theme.panel)
+        .overlay(alignment: .top) { Hairline(vertical: false) }
     }
 }

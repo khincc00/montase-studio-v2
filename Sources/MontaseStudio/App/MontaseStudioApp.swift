@@ -8,7 +8,8 @@ struct MontaseStudioApp: App {
         WindowGroup {
             WorkspaceView(app: app)
                 .preferredColorScheme(.dark)
-                .frame(minWidth: 1180, minHeight: 720)
+                .frame(minWidth: 1100, minHeight: 680)
+                .fontDesign(.rounded)
         }
         .commands {
             EditorCommands(app: app)
