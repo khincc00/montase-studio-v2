@@ -4,12 +4,22 @@ import SwiftUI
 struct MontaseStudioApp: App {
     @State private var app = AppState()
 
+    init() {
+        // Mode pemeriksaan Auto Clip dari terminal; selesai sebelum jendela dibuka.
+        let arguments = CommandLine.arguments
+        if let index = arguments.firstIndex(of: "--autoclip-check"), arguments.indices.contains(index + 1),
+           let outIndex = arguments.firstIndex(of: "--autoclip-out"), arguments.indices.contains(outIndex + 1) {
+            AutoClipSelfCheck.run(path: arguments[index + 1], outputPath: arguments[outIndex + 1])
+        }
+    }
+
     var body: some Scene {
         WindowGroup {
             WorkspaceView(app: app)
                 .preferredColorScheme(.dark)
                 .frame(minWidth: 1100, minHeight: 680)
                 .fontDesign(.rounded)
+                .task { AutoClipTranscriber.requestAuthorizationOnFirstLaunch() }
         }
         .commands {
             EditorCommands(app: app)

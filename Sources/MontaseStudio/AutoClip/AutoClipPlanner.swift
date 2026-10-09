@@ -36,6 +36,8 @@ struct Sentence: Equatable {
     var text: String
     var start: Double
     var end: Double
+    /// Jeda sesudah kalimat ini, dari audio (sunyi) atau dari celah antarkata, mana yang lebih panjang.
+    var pauseAfter: Double = 0
     var duration: Double { end - start }
 }
 
@@ -83,7 +85,8 @@ struct OutputPlan: Equatable {
 /// Perencana lokal: membagi transkrip menjadi topik, memecahnya menjadi segmen, memberi skor, dan menyusun output.
 /// Semua proses berjalan di perangkat tanpa layanan eksternal. Skor berasal dari aturan heuristik, bukan model bahasa.
 enum AutoClipPlanner {
-    static func sentences(from words: [SpokenWord]) -> [Sentence] {
+    /// Membagi kata menjadi kalimat. Batas diambil dari tanda baca, jeda antarkata, atau sunyi di audio.
+    static func sentences(from words: [SpokenWord], silences: [SilenceInterval] = []) -> [Sentence] {
         var result: [Sentence] = []
         var current: [SpokenWord] = []
 
@@ -95,8 +98,11 @@ enum AutoClipPlanner {
         }
 
         for word in words {
-            if let last = current.last, word.start - last.end >= AutoClipRules.sentenceGapSeconds {
-                flush()
+            if let last = current.last {
+                let pause = max(word.start - last.end, silenceTotal(from: last.end, to: word.start, silences))
+                if pause >= AutoClipRules.sentenceGapSeconds / 2 && (pause >= AutoClipRules.sentenceGapSeconds || silenceMatters(last.end, word.start, silences)) {
+                    flush()
+                }
             }
             current.append(word)
             if endsSentence(word.text) {
@@ -106,7 +112,26 @@ enum AutoClipPlanner {
         flush()
 
         // Kalimat yang lebih panjang dari batas klip dipecah di batas kata, tetap tanpa memotong kata.
-        return result.flatMap { split($0, words: words) }
+        var sentences = result.flatMap { split($0, words: words) }
+        for index in sentences.indices {
+            let end = sentences[index].end
+            let next = index + 1 < sentences.count ? sentences[index + 1].start : end
+            sentences[index].pauseAfter = max(next - end, silenceTotal(from: end, to: next, silences))
+        }
+        return sentences
+    }
+
+    /// Total durasi sunyi yang berada di antara dua waktu.
+    static func silenceTotal(from start: Double, to end: Double, _ silences: [SilenceInterval]) -> Double {
+        guard end > start else { return 0 }
+        return silences.reduce(0) { total, silence in
+            let overlap = min(silence.end, end) - max(silence.start, start)
+            return overlap > 0 ? total + overlap : total
+        }
+    }
+
+    private static func silenceMatters(_ start: Double, _ end: Double, _ silences: [SilenceInterval]) -> Bool {
+        silenceTotal(from: start, to: end, silences) >= AutoClipRules.sentenceGapSeconds / 2
     }
 
     private static func endsSentence(_ text: String) -> Bool {
@@ -145,7 +170,7 @@ enum AutoClipPlanner {
         var current: [Sentence] = []
         for sentence in sentences {
             if let last = current.last {
-                let gap = sentence.start - last.end
+                let gap = last.pauseAfter
                 let length = sentence.end - (current.first?.start ?? sentence.start)
                 if gap >= AutoClipRules.topicGapSeconds || length > AutoClipRules.maxTopicSeconds {
                     groups.append(current)
@@ -165,7 +190,7 @@ enum AutoClipPlanner {
 
         for sentence in sentences {
             if let last = current.last {
-                let gap = sentence.start - last.end
+                let gap = last.pauseAfter
                 let spanIfAdded = sentence.end - (current.first?.start ?? sentence.start)
                 let currentLength = last.end - (current.first?.start ?? last.end)
                 let scene = gap >= AutoClipRules.segmentGapSeconds && currentLength >= AutoClipRules.minClipSeconds
@@ -259,8 +284,8 @@ enum AutoClipPlanner {
     // MARK: - Pipeline
 
     /// Menjalankan seluruh tahap: kalimat → topik → segmen → skor.
-    static func analyze(words: [SpokenWord]) -> [Topic] {
-        let groups = topicGroups(sentences(from: words))
+    static func analyze(words: [SpokenWord], silences: [SilenceInterval] = []) -> [Topic] {
+        let groups = topicGroups(sentences(from: words, silences: silences))
         var topics: [Topic] = []
 
         for group in groups {

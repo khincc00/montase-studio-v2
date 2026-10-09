@@ -198,3 +198,28 @@ final class AutoClipAudioExtractionTests: XCTestCase {
         XCTAssertEqual(duration, 4, accuracy: 0.3)
     }
 }
+
+final class AutoClipSilenceTests: XCTestCase {
+    func testSilentWindowsBecomeIntervalsAboveMinimum() {
+        // 0.05 dtk per jendela. Sunyi 0,1 dtk dibuang, sunyi 0,5 dtk dipertahankan.
+        let windows = [false, false, true, true, false, false, true, true, true, true, true, true, true, true, true, true, true, true, true, true, true, false]
+        let intervals = AutoClipSilence.intervals(from: windows, minimumSeconds: 0.4)
+        XCTAssertEqual(intervals.count, 1)
+        XCTAssertEqual(intervals[0].start, 0.3, accuracy: 0.001)
+        XCTAssertEqual(intervals[0].end, 1.05, accuracy: 0.001)
+    }
+
+    func testSilenceSplitsSentencesWithoutPunctuation() {
+        // Transkrip tanpa tanda baca: pembatasnya hanya sunyi di audio.
+        let words = [
+            SpokenWord(text: "satu", start: 0, end: 0.4),
+            SpokenWord(text: "dua", start: 0.4, end: 0.8),
+            SpokenWord(text: "tiga", start: 2.0, end: 2.4),
+            SpokenWord(text: "empat", start: 2.4, end: 2.8),
+        ]
+        let silences = [SilenceInterval(start: 0.8, end: 2.0)]
+        let sentences = AutoClipPlanner.sentences(from: words, silences: silences)
+        XCTAssertEqual(sentences.count, 2)
+        XCTAssertEqual(sentences[0].pauseAfter, 1.2, accuracy: 0.001)
+    }
+}

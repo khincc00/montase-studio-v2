@@ -109,7 +109,8 @@ final class AutoClipRunner {
             try Task.checkCancellation()
 
             stage = .planning
-            let topics = AutoClipPlanner.analyze(words: words)
+            let silences = (try? AutoClipSilence.detect(in: audioURL!)) ?? []
+            let topics = AutoClipPlanner.analyze(words: words, silences: silences)
             topicCount = topics.count
             let outputs = AutoClipPlanner.compose(topics: topics, count: request.count)
             guard !outputs.isEmpty else {

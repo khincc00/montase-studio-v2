@@ -31,6 +31,12 @@ enum AutoClipTranscriber {
         }
     }
 
+    /// Meminta izin pengenalan suara saat aplikasi pertama dibuka. Hanya memicu dialog jika statusnya belum ditentukan.
+    static func requestAuthorizationOnFirstLaunch() {
+        guard SFSpeechRecognizer.authorizationStatus() == .notDetermined else { return }
+        SFSpeechRecognizer.requestAuthorization { _ in }
+    }
+
     static func requestAuthorization() async throws {
         if SFSpeechRecognizer.authorizationStatus() == .authorized { return }
         let status: SFSpeechRecognizerAuthorizationStatus = await withCheckedContinuation { continuation in
@@ -85,15 +91,18 @@ enum AutoClipTranscriber {
                         continuation.resume(throwing: TranscribeError.failed(error.localizedDescription))
                         return
                     }
-                    guard let result, result.isFinal else { return }
-                    box.finished = true
-                    let words = result.bestTranscription.segments.map {
+                    guard let result else { return }
+                    // Pengenal mengirim beberapa hasil untuk satu berkas. Kata dari setiap hasil dikumpulkan,
+                    // lalu kata yang sudah ada (berdasarkan waktu) dibuang agar tidak dobel.
+                    box.append(result.bestTranscription.segments.map {
                         SpokenWord(text: $0.substring, start: $0.timestamp, end: $0.timestamp + $0.duration)
-                    }
-                    if words.isEmpty {
+                    })
+                    guard result.isFinal else { return }
+                    box.finished = true
+                    if box.words.isEmpty {
                         continuation.resume(throwing: TranscribeError.noSpeech)
                     } else {
-                        continuation.resume(returning: words)
+                        continuation.resume(returning: box.words)
                     }
                 }
             }
@@ -106,5 +115,12 @@ enum AutoClipTranscriber {
     private final class TaskBox: @unchecked Sendable {
         var task: SFSpeechRecognitionTask?
         var finished = false
+        private(set) var words: [SpokenWord] = []
+
+        /// Menambahkan kata yang belum ada. Kata dianggap baru jika mulai setelah kata terakhir yang tersimpan.
+        func append(_ incoming: [SpokenWord]) {
+            let lastEnd = words.last?.end ?? -1
+            words += incoming.filter { $0.start > lastEnd - 0.05 }
+        }
     }
 }

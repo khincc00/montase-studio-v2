@@ -81,7 +81,16 @@ Dokumen ini untuk menguji Montase Studio langsung di Mac, lalu mencatat hasilnya
 
 ## 8. Auto Clip
 
-Persiapan: impor `landscape-1080p.mp4` (berisi suara). Auto Clip membutuhkan ucapan asli untuk dianalisis. Sumber tone di `make-sample-media.sh` tidak punya ucapan, jadi gunakan rekaman yang berisi kalimat nyata.
+Persiapan: jalankan `./scripts/make-speech-sample.sh`. Ini membuat `~/Movies/Montase Uji/ucapan-jeda.wav`, yaitu ucapan Indonesia sungguhan (suara Damayanti) dengan jeda 1 detik antarkalimat dan 3 detik antartopik. Sumber tone di `make-sample-media.sh` tidak punya ucapan.
+
+Izin: saat aplikasi pertama dibuka, macOS menanyakan izin "Pengenalan Ucapan". Pilih Izinkan. Pilihan ini bisa diubah di Pengaturan Sistem > Privasi & Keamanan > Pengenalan Ucapan.
+
+Pemeriksaan cepat tanpa UI (dijalankan lewat `open` agar aplikasi yang meminta izin, bukan terminal):
+
+    open -W "build/Montase Studio.app" --args --autoclip-check "$HOME/Movies/Montase Uji/ucapan-jeda.wav" --autoclip-out /tmp/autoclip-check.txt
+    cat /tmp/autoclip-check.txt
+
+Hasil yang diharapkan: `KATA` sekitar 30, `SUNYI` 4 (jeda 1 dan 3 detik), `TOPIK` 2, dan teks transkrip sesuai kalimat di atas.
 
 - [ ] Tombol tongkat ajaib di bilah atas membuka panel Auto Clip. Perintah "Auto Clip…" juga ada di palet (⌘K).
 - [ ] Pertama kali dijalankan, macOS meminta izin Pengenalan Ucapan. Setelah diizinkan, proses lanjut.
