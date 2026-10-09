@@ -45,7 +45,6 @@ final class EditorStore {
         guard project != before else { return }
 
         undoSteps.append(Step(label: label, project: before))
-        if undoSteps.count > 200 { undoSteps.removeFirst() }
         redoSteps.removeAll()
         finishChange()
     }

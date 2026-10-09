@@ -46,11 +46,20 @@ final class AppState {
     private(set) var memoryPressure = false
 
     @ObservationIgnored private var autosaveTask: Task<Void, Never>?
+    @ObservationIgnored private var autosaveFailed = false
     @ObservationIgnored private var pressureSource: DispatchSourceMemoryPressure?
     private static let projectType = UTType(filenameExtension: ProjectStorage.fileExtension) ?? .json
 
     init() {
-        let recovered = try? ProjectStorage.read(from: ProjectStorage.recoveryURL)
+        var recovered: Project?
+        var recoveryFailed = false
+        if FileManager.default.fileExists(atPath: ProjectStorage.recoveryURL.path) {
+            do {
+                recovered = try ProjectStorage.read(from: ProjectStorage.recoveryURL)
+            } catch {
+                recoveryFailed = true
+            }
+        }
         let store = EditorStore(project: recovered ?? Project(), hasUnsavedChanges: recovered != nil)
         let proxies = ProxyManager()
         self.store = store
@@ -61,6 +70,10 @@ final class AppState {
         proxies.onReadyChange = { [weak self] in self?.refreshPreview() }
         playback.onFrameChanged = { [weak self] in self?.refreshScope() }
         startMemoryPressureMonitor()
+
+        if recoveryFailed {
+            alertMessage = "Pemulihan gagal: berkas autosave rusak dan tidak bisa dibuka. Proyek kosong dimuat; berkas pemulihan tetap tersimpan di Application Support."
+        }
 
         Task { [weak self] in
             self?.ensureMediaWork()
@@ -178,7 +191,15 @@ final class AppState {
         autosaveTask = Task {
             try? await Task.sleep(for: .seconds(2))
             guard !Task.isCancelled else { return }
-            try? ProjectStorage.write(snapshot, to: ProjectStorage.recoveryURL)
+            do {
+                try ProjectStorage.write(snapshot, to: ProjectStorage.recoveryURL)
+                autosaveFailed = false
+            } catch {
+                // Peringatan hanya sekali per kegagalan, agar tidak muncul setiap perubahan.
+                guard !autosaveFailed else { return }
+                autosaveFailed = true
+                alertMessage = "Autosave gagal: \(error.localizedDescription). Perubahan terbaru belum terlindungi; simpan proyek secara manual (⌘S)."
+            }
         }
     }
 
@@ -269,7 +290,8 @@ final class AppState {
             store.notify("Timeline kosong; tidak ada yang bisa diekspor.")
             return
         }
-        let suffix = exporter.settings.size.width > exporter.settings.size.height ? "" : "-vertikal"
+        let size = exporter.settings.size
+        let suffix = size.width > size.height ? "" : size.width < size.height ? "-vertikal" : "-persegi"
 
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.mpeg4Movie]

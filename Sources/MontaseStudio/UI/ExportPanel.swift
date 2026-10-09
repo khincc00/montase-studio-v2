@@ -51,6 +51,15 @@ struct ExportPanel: View {
                 .labelsHidden()
             }
 
+            VStack(alignment: .leading, spacing: 6) {
+                SectionTitle("Kualitas")
+                Picker("Kualitas", selection: binding(\.quality)) {
+                    ForEach(ExportQuality.allCases) { Text($0.title).tag($0) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+            }
+
             Text("Sumber: file asli (bukan proxy). Efek, transform, teks, dan EQ ikut diekspor.")
                 .font(.caption)
                 .foregroundStyle(Theme.textSecondary)

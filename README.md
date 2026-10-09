@@ -21,7 +21,7 @@ Uji integrasi membuat media uji dengan ffmpeg (`/opt/homebrew/bin/ffmpeg` atau `
 - **Transform dan warna:** posisi, skala, rotasi, crop (diterapkan sebelum rotasi), exposure, kontras, saturasi, suhu, tint, highlights, shadows, LUT `.cube` dengan intensitas, mode Sebelum/Sesudah, scope histogram.
 - **Audio:** fader dan mute/solo per track, EQ tiga pita (low shelf 120 Hz, peaking 1 kHz, high shelf 8 kHz), meter dari puncak sumber di playhead, gelombang di clip.
 - **Preview:** AVPlayer dengan compositor Core Image kustom; kualitas penuh, ½, atau ¼; proxy 960 px otomatis untuk sumber 4K.
-- **Export:** 1080p atau 4K, landscape, portrait, atau square; H.264 atau HEVC; progres dan pembatalan.
+- **Export:** 1080p atau 4K, landscape, portrait, atau square; H.264 atau HEVC; kualitas standar atau tinggi (bitrate ×1,6); progres dan pembatalan.
 - **Proyek:** simpan/buka `.montase` (JSON, penulisan atomik), autosave pemulihan, migrasi dari schema 1.
 - **Lain-lain:** command palette (⌘K), workspace Edit / Color / Audio / Export (⌘1–⌘4), tekanan memori menjeda pembuatan proxy.
 

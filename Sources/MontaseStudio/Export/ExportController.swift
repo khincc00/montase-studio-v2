@@ -34,10 +34,21 @@ enum ExportCodec: String, CaseIterable, Identifiable {
     var title: String { self == .h264 ? "H.264" : "HEVC" }
 }
 
+enum ExportQuality: String, CaseIterable, Identifiable {
+    case standard
+    case high
+
+    var id: String { rawValue }
+    var title: String { self == .standard ? "Standar" : "Tinggi" }
+    /// Faktor terhadap bitrate dasar; file tinggi lebih besar tetapi detail gerak lebih terjaga.
+    var multiplier: Double { self == .standard ? 1.0 : 1.6 }
+}
+
 struct ExportSettings: Equatable {
     var resolution: ExportResolution = .hd
     var orientation: ExportOrientation = .landscape
     var codec: ExportCodec = .h264
+    var quality: ExportQuality = .standard
 
     var size: CGSize {
         let long: CGFloat = resolution == .hd ? 1920 : 3840
@@ -51,8 +62,8 @@ struct ExportSettings: Equatable {
 
     /// Bitrate target. HEVC membutuhkan sekitar dua pertiga bitrate H.264 untuk kualitas setara.
     var bitrate: Int {
-        let base = resolution == .hd ? 12_000_000 : 40_000_000
-        return codec == .hevc ? base * 2 / 3 : base
+        let base = Double(resolution == .hd ? 12_000_000 : 40_000_000) * quality.multiplier
+        return Int(codec == .hevc ? base * 2 / 3 : base)
     }
 
     var videoCodec: AVVideoCodecType { codec == .h264 ? .h264 : .hevc }
